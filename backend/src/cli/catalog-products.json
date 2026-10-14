@@ -1,0 +1,417 @@
+[
+ {
+  "slug": "pack-beaute-bien-etre",
+  "name": "Pack Beauté & Bien-être",
+  "images": [
+   "/pack-beaute-bien-etre.jpg",
+   "/neck-beauty-studio.jpg",
+   "/fascia-gun.jpg"
+  ],
+  "kind": "Neck Beauty Device + Fascia Gun",
+  "category": "packs",
+  "cats": [
+   "pack",
+   "visage",
+   "massage",
+   "new"
+  ],
+  "price": 289,
+  "old": 499,
+  "sku": "MG-PACK-01",
+  "stock": 40,
+  "sold": 120,
+  "status": "ACTIVE",
+  "color": "Blanc",
+  "warranty": 6,
+  "desc": "Deux best-sellers réunis dans un seul pack : l’appareil Neck Beauty pour un cou plus ferme, plus lisse et plus jeune, et le pistolet de massage Fascia Gun pour soulager vos muscles et améliorer votre circulation. Le cadeau idéal, pour vous ou pour un proche.",
+  "features": [
+   "2 produits en 1 seul pack",
+   "Un cou plus ferme, plus lisse et plus jeune",
+   "Soulage les muscles, améliore la circulation",
+   "6 têtes de massage interchangeables",
+   "Rechargeables par USB"
+  ],
+  "specs": [
+   [
+    "Contenu",
+    "Neck Beauty Device, Fascia Gun, 6 têtes de massage, câbles USB, notices"
+   ],
+   [
+    "Charge",
+    "USB"
+   ],
+   [
+    "Économie",
+    "210 DH par rapport à l’achat séparé"
+   ]
+  ]
+ },
+ {
+  "slug": "neck-beauty-device",
+  "name": "Neck Beauty Device — lifting cou & visage",
+  "images": [
+   "/neck-beauty-device.jpg",
+   "/neck-beauty-studio.jpg"
+  ],
+  "kind": "Lifting cou & visage · 7 modes",
+  "category": "soin-visage",
+  "cats": [
+   "visage",
+   "new"
+  ],
+  "price": 140,
+  "old": 249,
+  "sku": "MG-NECK-01",
+  "stock": 60,
+  "sold": 210,
+  "status": "ACTIVE",
+  "color": "Blanc",
+  "warranty": 6,
+  "desc": "Appareil de soin pour le cou et le visage qui associe luminothérapie LED, massage chauffant et vibrations. Quelques minutes par jour suffisent pour une peau visiblement plus ferme et un ovale du visage redessiné. Il favorise aussi la pénétration de vos crèmes et sérums.",
+  "features": [
+   "Réduit l’apparence des rides du cou",
+   "Raffermit et tonifie la peau",
+   "Luminothérapie LED : 3 couleurs",
+   "Massage chauffant et vibrations",
+   "Favorise l’absorption des soins",
+   "Rechargeable USB"
+  ],
+  "specs": [
+   [
+    "Modes",
+    "7 modes de soin"
+   ],
+   [
+    "Lumière LED",
+    "Rouge, bleu, violet"
+   ],
+   [
+    "Fonctions",
+    "Chaleur, vibrations, LED"
+   ],
+   [
+    "Charge",
+    "USB"
+   ],
+   [
+    "Contenu",
+    "Appareil, câble USB, notice"
+   ]
+  ]
+ },
+ {
+  "slug": "fascia-gun",
+  "name": "Fascia Gun — pistolet de massage 6 têtes",
+  "images": [
+   "/fascia-gun.jpg"
+  ],
+  "kind": "Massage musculaire profond · 6 vitesses",
+  "category": "massage",
+  "cats": [
+   "massage"
+  ],
+  "price": 199,
+  "old": 349,
+  "sku": "MG-FASCIA-01",
+  "stock": 45,
+  "sold": 160,
+  "status": "ACTIVE",
+  "color": "Blanc",
+  "warranty": 6,
+  "desc": "Pistolet de massage à percussion pour détendre les muscles après le sport, une longue journée debout ou des heures au bureau. Six têtes et six vitesses pour cibler le dos, les épaules, les jambes ou la voûte plantaire. Compact, il se glisse dans un sac.",
+  "features": [
+   "Massage en profondeur des muscles",
+   "6 têtes interchangeables",
+   "6 niveaux de vitesse",
+   "Batterie longue durée",
+   "Compact et silencieux"
+  ],
+  "specs": [
+   [
+    "Têtes",
+    "6 embouts interchangeables"
+   ],
+   [
+    "Vitesses",
+    "6 niveaux"
+   ],
+   [
+    "Charge",
+    "USB"
+   ],
+   [
+    "Contenu",
+    "Pistolet, 6 têtes, câble USB, notice"
+   ]
+  ]
+ },
+ {
+  "slug": "masseur-cervical-chauffant",
+  "name": "Masseur cervical chauffant EMS",
+  "images": [],
+  "kind": "Chaleur + impulsions · 6 modes",
+  "category": "massage",
+  "cats": [
+   "massage"
+  ],
+  "price": 179,
+  "old": 299,
+  "sku": "MG-NUQUE-01",
+  "stock": 30,
+  "sold": 0,
+  "status": "DRAFT",
+  "color": "Blanc",
+  "warranty": 6,
+  "desc": "Masseur pour la nuque qui combine chaleur douce et micro-impulsions pour relâcher les tensions cervicales. Léger, sans fil, il se porte en lisant, en travaillant ou en se reposant.",
+  "features": [
+   "Soulage les tensions de la nuque",
+   "Chaleur douce réglable",
+   "6 modes, 15 intensités",
+   "Sans fil, rechargeable USB"
+  ],
+  "specs": [
+   [
+    "Modes",
+    "6 modes, 15 intensités"
+   ],
+   [
+    "Chaleur",
+    "Environ 42 °C"
+   ],
+   [
+    "Charge",
+    "USB"
+   ]
+  ]
+ },
+ {
+  "slug": "brosse-nettoyante-visage",
+  "name": "Brosse nettoyante visage sonique",
+  "images": [],
+  "kind": "Nettoyage en profondeur · étanche",
+  "category": "soin-visage",
+  "cats": [
+   "visage"
+  ],
+  "price": 129,
+  "old": 199,
+  "sku": "MG-BROSSE-01",
+  "stock": 50,
+  "sold": 0,
+  "status": "DRAFT",
+  "color": "Rose",
+  "warranty": 6,
+  "desc": "Brosse en silicone à vibrations soniques qui nettoie les pores en douceur, retire le maquillage et prépare la peau aux soins. Étanche, elle s’utilise sous la douche.",
+  "features": [
+   "Nettoie les pores en profondeur",
+   "Silicone doux, hygiénique",
+   "Étanche",
+   "Rechargeable USB"
+  ],
+  "specs": [
+   [
+    "Matière",
+    "Silicone alimentaire"
+   ],
+   [
+    "Étanchéité",
+    "Utilisable sous la douche"
+   ],
+   [
+    "Charge",
+    "USB"
+   ]
+  ]
+ },
+ {
+  "slug": "epilateur-ipl",
+  "name": "Épilateur à lumière pulsée IPL",
+  "images": [],
+  "kind": "Épilation durable · 5 niveaux",
+  "category": "epilation-cheveux",
+  "cats": [
+   "epilation"
+  ],
+  "price": 349,
+  "old": 599,
+  "sku": "MG-IPL-01",
+  "stock": 20,
+  "sold": 0,
+  "status": "DRAFT",
+  "color": "Blanc",
+  "warranty": 12,
+  "desc": "Épilateur à lumière pulsée pour réduire durablement la repousse des poils, à la maison. Cinq niveaux d’intensité pour s’adapter à chaque zone du corps.",
+  "features": [
+   "Réduit durablement la repousse",
+   "5 niveaux d’intensité",
+   "Mode manuel et automatique",
+   "Visage et corps"
+  ],
+  "specs": [
+   [
+    "Intensité",
+    "5 niveaux"
+   ],
+   [
+    "Zones",
+    "Jambes, aisselles, maillot, visage"
+   ],
+   [
+    "Alimentation",
+    "Secteur"
+   ]
+  ]
+ },
+ {
+  "slug": "brosse-lissante-chauffante",
+  "name": "Brosse lissante chauffante",
+  "images": [],
+  "kind": "Cheveux lisses en 5 minutes · ions négatifs",
+  "category": "epilation-cheveux",
+  "cats": [
+   "epilation"
+  ],
+  "price": 159,
+  "old": 249,
+  "sku": "MG-LISS-01",
+  "stock": 35,
+  "sold": 0,
+  "status": "DRAFT",
+  "color": "Noir",
+  "warranty": 6,
+  "desc": "Brosse chauffante en céramique qui démêle et lisse en un seul geste, sans abîmer les cheveux grâce aux ions négatifs.",
+  "features": [
+   "Lisse et démêle en un geste",
+   "Plaques céramique",
+   "Ions négatifs anti-frisottis",
+   "Chauffe en 60 secondes"
+  ],
+  "specs": [
+   [
+    "Température",
+    "150 à 230 °C"
+   ],
+   [
+    "Revêtement",
+    "Céramique"
+   ],
+   [
+    "Alimentation",
+    "Secteur"
+   ]
+  ]
+ },
+ {
+  "slug": "ceinture-minceur-ems",
+  "name": "Ceinture de massage abdominale EMS",
+  "images": [],
+  "kind": "Tonifie la sangle abdominale · 6 modes",
+  "category": "corps-minceur",
+  "cats": [
+   "corps"
+  ],
+  "price": 199,
+  "old": 329,
+  "sku": "MG-EMS-01",
+  "stock": 25,
+  "sold": 0,
+  "status": "DRAFT",
+  "color": "Noir",
+  "warranty": 6,
+  "desc": "Ceinture à électrostimulation qui fait travailler les abdominaux pendant que vous vaquez à vos occupations. Six programmes et plusieurs intensités.",
+  "features": [
+   "Tonifie les abdominaux",
+   "6 programmes, 9 intensités",
+   "Légère et discrète",
+   "Rechargeable USB"
+  ],
+  "specs": [
+   [
+    "Programmes",
+    "6"
+   ],
+   [
+    "Intensités",
+    "9 niveaux"
+   ],
+   [
+    "Charge",
+    "USB"
+   ]
+  ]
+ },
+ {
+  "slug": "rouleau-jade-gua-sha",
+  "name": "Kit rouleau de jade & gua sha",
+  "images": [],
+  "kind": "Massage du visage · pierre naturelle",
+  "category": "soin-visage",
+  "cats": [
+   "visage"
+  ],
+  "price": 89,
+  "old": 149,
+  "sku": "MG-JADE-01",
+  "stock": 70,
+  "sold": 0,
+  "status": "DRAFT",
+  "color": "Vert",
+  "warranty": 0,
+  "desc": "Le rituel de beauté traditionnel pour dégonfler le visage, stimuler la circulation et sublimer l’effet de vos sérums.",
+  "features": [
+   "Dégonfle et défatigue le visage",
+   "Stimule la microcirculation",
+   "Pierre de jade naturelle",
+   "Livré dans sa pochette"
+  ],
+  "specs": [
+   [
+    "Matière",
+    "Jade naturel"
+   ],
+   [
+    "Contenu",
+    "Rouleau double, gua sha, pochette"
+   ]
+  ]
+ },
+ {
+  "slug": "serum-vitamine-c",
+  "name": "Sérum éclat vitamine C — 30 ml",
+  "images": [],
+  "kind": "Éclat & teint unifié",
+  "category": "cosmetiques",
+  "cats": [
+   "cosmetique"
+  ],
+  "price": 99,
+  "old": 149,
+  "sku": "MG-SERUM-C",
+  "stock": 80,
+  "sold": 0,
+  "status": "DRAFT",
+  "color": "Orange",
+  "warranty": 0,
+  "desc": "Sérum concentré en vitamine C et acide hyaluronique pour un teint plus lumineux et une peau hydratée. Parfait en duo avec le Neck Beauty Device.",
+  "features": [
+   "Teint plus lumineux",
+   "Hydrate en profondeur",
+   "Texture légère, non grasse",
+   "Flacon compte-gouttes 30 ml"
+  ],
+  "specs": [
+   [
+    "Contenance",
+    "30 ml"
+   ],
+   [
+    "Actifs",
+    "Vitamine C, acide hyaluronique"
+   ],
+   [
+    "Utilisation",
+    "Matin et soir, avant la crème"
+   ]
+  ]
+ }
+]

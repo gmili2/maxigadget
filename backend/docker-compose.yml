@@ -1,0 +1,19 @@
+# Base locale identique à l'hébergement Namecheap (MariaDB 11.4).
+# Nom de projet explicite : sinon Compose prend le nom du dossier (« backend »), le même que GMBIJOUX.
+name: maxigadget
+services:
+  mariadb:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: maxigadget
+      MARIADB_USER: maxigadget
+      MARIADB_PASSWORD: maxigadget
+      MARIADB_ROOT_PASSWORD: maxigadget-root
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "3308:3306"
+    volumes:
+      - mariadb:/var/lib/mysql
+volumes:
+  mariadb:

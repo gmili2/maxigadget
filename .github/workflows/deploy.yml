@@ -1,0 +1,137 @@
+# Vérifie et construit le site et l'API à chaque push ; déploie sur l'hébergement Namecheap (cPanel)
+# quand la variable DEPLOY_ENABLED vaut « true ». Guide complet : DEPLOY.md.
+name: Build & deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      with_catalog:
+        description: "Importer les produits de départ si le catalogue est vide"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Vérifier et construire
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Site — dépendances
+        run: npm ci
+
+      - name: Site — vérification et construction
+        run: npm run build
+
+      - name: API — dépendances
+        working-directory: backend
+        run: npm ci
+
+      - name: API — client Prisma, vérification et construction
+        working-directory: backend
+        env:
+          # Adresse factice : la vérification du schéma l'exige, aucune connexion n'est ouverte ici.
+          DATABASE_URL: mysql://ci:ci@localhost:3306/ci
+        run: |
+          npx prisma validate
+          npx prisma generate
+          npx tsc --noEmit -p tsconfig.json
+          npm run build
+
+      - name: Préparer le paquet de déploiement
+        run: |
+          mkdir -p release/site release/api/prisma
+          cp -R dist/. release/site/
+          cp -R backend/dist release/api/dist
+          cp backend/package.json backend/package-lock.json release/api/
+          cp -R backend/prisma/schema.prisma backend/prisma/migrations release/api/prisma/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release
+          include-hidden-files: true # .htaccess du site
+          retention-days: 7
+
+  deploy:
+    name: Déployer sur Namecheap
+    needs: build
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ vars.SSH_PORT || '21098' }}
+      SITE_DIR: ${{ vars.SITE_DIR || 'public_html' }}
+      APP_DIR: ${{ vars.APP_DIR || 'maxigadget-api' }}
+      NODE_MAJOR: ${{ vars.NODE_MAJOR || '22' }}
+      SITE_URL: ${{ vars.SITE_URL }}
+      BOOTSTRAP_ARGS: ${{ (inputs.with_catalog || vars.BOOTSTRAP_WITH_CATALOG == 'true') && '--with-catalog' || '' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+
+      - name: Clé SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          echo "SSH=ssh -i $HOME/.ssh/deploy_key -p $SSH_PORT -o BatchMode=yes" >> "$GITHUB_ENV"
+
+      - name: Envoyer l'API
+        # .env, uploads/, node_modules et tmp/ restent intacts sur le serveur.
+        run: |
+          $SSH "$SSH_USER@$SSH_HOST" "mkdir -p ~/$APP_DIR/prisma ~/$APP_DIR/tmp"
+          rsync -az --delete -e "$SSH" release/api/dist/ "$SSH_USER@$SSH_HOST:$APP_DIR/dist/"
+          rsync -az --delete -e "$SSH" release/api/prisma/migrations/ "$SSH_USER@$SSH_HOST:$APP_DIR/prisma/migrations/"
+          rsync -az -e "$SSH" release/api/package.json release/api/package-lock.json "$SSH_USER@$SSH_HOST:$APP_DIR/"
+          rsync -az -e "$SSH" release/api/prisma/schema.prisma "$SSH_USER@$SSH_HOST:$APP_DIR/prisma/"
+
+      - name: Installer, migrer la base, redémarrer l'API
+        run: |
+          $SSH "$SSH_USER@$SSH_HOST" bash -se <<EOF
+          set -eo pipefail
+          # Le script d'activation de cPanel lit des variables non définies : « -u » seulement après.
+          source ~/nodevenv/$APP_DIR/$NODE_MAJOR/bin/activate
+          set -u
+          cd ~/$APP_DIR
+          test -f .env || { echo "::error::~/$APP_DIR/.env manquant (voir DEPLOY.md)"; exit 1; }
+          npm install --omit=dev --no-audit --no-fund
+          npx prisma generate
+          npx prisma migrate deploy
+          node dist/cli/bootstrap.js $BOOTSTRAP_ARGS
+          touch tmp/restart.txt
+          EOF
+
+      - name: Envoyer le site
+        # assets/ est remplacé entièrement ; le reste du dossier (dont api/ créé par cPanel) n'est pas supprimé.
+        run: |
+          rsync -az --delete -e "$SSH" release/site/assets/ "$SSH_USER@$SSH_HOST:$SITE_DIR/assets/"
+          rsync -az --exclude assets -e "$SSH" release/site/ "$SSH_USER@$SSH_HOST:$SITE_DIR/"
+
+      - name: Vérifier que le site répond
+        if: env.SITE_URL != ''
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "$SITE_URL/api/v1/health"; then echo; curl -fsS -o /dev/null "$SITE_URL/" && echo "Site en ligne : $SITE_URL"; exit 0; fi
+            sleep 10
+          done
+          echo "::error::L'API ne répond pas sur $SITE_URL/api/v1/health"; exit 1
