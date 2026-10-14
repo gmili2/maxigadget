@@ -96,7 +96,7 @@ export class CatalogController {
   @Get('products/:slug')
   async product(@Param('slug') slug: string) {
     const p = await this.prisma.product.findFirst({ where: { slug, status: 'ACTIVE', category: { isActive: true } }, include });
-    if (!p) throw new AppError(HttpStatus.NOT_FOUND, 'PRODUCT_NOT_FOUND', 'Produit introuvable');
+    if (!p) throw new AppError(HttpStatus.NOT_FOUND, 'PRODUCT_NOT_FOUND', 'المنتج غير موجود');
     const reviews = await this.prisma.review.findMany({
       where: { productId: p.id, status: 'APPROVED' }, orderBy: { createdAt: 'desc' }, take: 20,
       select: { id: true, rating: true, title: true, comment: true, createdAt: true, user: { select: { firstName: true, lastName: true } } },

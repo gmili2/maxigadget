@@ -26,7 +26,7 @@ export class SiteController {
   unlock(@Body() { code }: UnlockDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     if (!this.access.enabled) return { data: { unlocked: true } };
     const value = this.access.check(code);
-    if (!value) throw new AppError(HttpStatus.UNAUTHORIZED, 'BAD_ACCESS_CODE', 'Code d’accès incorrect');
+    if (!value) throw new AppError(HttpStatus.UNAUTHORIZED, 'BAD_ACCESS_CODE', 'رمز الدخول غير صحيح');
     res.cookie(SITE_COOKIE, value, { httpOnly: true, secure: req.secure, sameSite: 'lax', path: '/api', maxAge: 30 * 86_400_000 });
     return { data: { unlocked: true } };
   }

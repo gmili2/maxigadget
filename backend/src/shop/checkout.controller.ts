@@ -24,7 +24,7 @@ class CustomerDto {
   // Formulaire court de la boutique : un seul champ « nom », pas d'e-mail.
   @IsOptional() @trim() @IsString() @MaxLength(80) lastName?: string;
   @IsOptional() @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() || undefined : value)) @IsEmail() @MaxLength(254) email?: string;
-  @trim() @Matches(/^\+?[0-9 ().-]{8,20}$/, { message: 'Numéro de téléphone invalide' }) phone: string;
+  @trim() @Matches(/^\+?[0-9 ().-]{8,20}$/, { message: 'رقم الهاتف غير صحيح' }) phone: string;
 }
 class AddressDto {
   @trim() @IsString() @MinLength(3) @MaxLength(160) line1: string;

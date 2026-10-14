@@ -1,7 +1,7 @@
 type P = { color?: string; size?: number; fill?: string };
 
-const svg = (size: number, color: string, children: React.ReactNode, sw = 1.4, fill = 'none') => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={sw} aria-hidden="true">
+const svg = (size: number, color: string, children: React.ReactNode, sw = 1.4, fill = 'none', className?: string) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={sw} aria-hidden="true">
     {children}
   </svg>
 );
@@ -13,7 +13,7 @@ export const UserIcon = ({ color = 'currentColor', size = 20 }: P) =>
 export const BagIcon = ({ color = 'currentColor', size = 20 }: P) =>
   svg(size, color, <><path d="M5 8h14l-1 12H6L5 8z" /><path d="M9 8V6.5a3 3 0 016 0V8" /></>, 1.5);
 export const ArrowIcon = ({ color = 'currentColor', size = 16 }: P) =>
-  svg(size, color, <path d="M5 12h14M13 6l6 6-6 6" />, 1.5);
+  svg(size, color, <path d="M5 12h14M13 6l6 6-6 6" />, 1.5, 'none', 'icon-arrow');
 export const CloseIcon = ({ color = 'currentColor', size = 18 }: P) =>
   svg(size, color, <path d="M6 6l12 12M18 6L6 18" />);
 export const MenuIcon = ({ color = 'currentColor', size = 22 }: P) =>

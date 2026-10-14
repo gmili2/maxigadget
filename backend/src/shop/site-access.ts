@@ -47,6 +47,6 @@ export class SiteAccessGuard implements CanActivate {
 
   canActivate(ctx: ExecutionContext) {
     if (this.access.granted(ctx.switchToHttp().getRequest<Request>())) return true;
-    throw new AppError(HttpStatus.FORBIDDEN, 'SITE_LOCKED', 'Boutique en accès privé : saisissez le code d’accès.');
+    throw new AppError(HttpStatus.FORBIDDEN, 'SITE_LOCKED', 'المتجر خاص: أدخل رمز الدخول.');
   }
 }

@@ -15,16 +15,16 @@ import { PATHS } from './routes';
 import { useStore } from './store';
 
 const TITLES: Record<string, string> = {
-  [PATHS.collections]: 'Catégories',
-  [PATHS.cart]: 'Panier',
-  [PATHS.checkout]: 'Commande',
-  [PATHS.about]: 'À propos',
-  [PATHS.contact]: 'Contact',
-  [PATHS.faq]: 'Questions fréquentes',
-  [PATHS.cgv]: 'Conditions générales de vente',
-  [PATHS.privacy]: 'Confidentialité',
-  [PATHS.account]: 'Mon compte',
-  [PATHS.charte]: 'Charte graphique',
+  [PATHS.collections]: 'الأقسام',
+  [PATHS.cart]: 'السلة',
+  [PATHS.checkout]: 'الطلب',
+  [PATHS.about]: 'من نحن',
+  [PATHS.contact]: 'اتصل بنا',
+  [PATHS.faq]: 'الأسئلة الشائعة',
+  [PATHS.cgv]: 'الشروط العامة للبيع',
+  [PATHS.privacy]: 'سياسة الخصوصية',
+  [PATHS.account]: 'حسابي',
+  [PATHS.charte]: 'الهوية البصرية',
 };
 
 export default function App() {
@@ -34,12 +34,18 @@ export default function App() {
   const { site, unlocked } = useCatalog();
 
   useReveal(pathname);
+  // Boutique en arabe (de droite à gauche) ; l'administration reste en français.
+  const isAdmin = pathname.startsWith(PATHS.admin);
+  useEffect(() => {
+    document.documentElement.lang = isAdmin ? 'fr' : 'ar';
+    document.documentElement.dir = isAdmin ? 'ltr' : 'rtl';
+  }, [isAdmin]);
   useEffect(() => {
     window.scrollTo({ top: 0 });
     closeAll();
     if (!pathname.startsWith('/produit/') && !pathname.startsWith(PATHS.admin)) {
-      const t = pathname === '/' ? '' : TITLES[pathname] ?? (pathname.startsWith('/produits') ? 'Produits' : '');
-      document.title = t ? `${t} — MaxiGadget` : 'MaxiGadget — Beauté, massage & bien-être';
+      const t = pathname === '/' ? '' : TITLES[pathname] ?? (pathname.startsWith('/produits') ? 'المنتجات' : '');
+      document.title = t ? `${t} — ماكسي غادجت` : 'ماكسي غادجت — تجميل، تدليك وعناية';
     }
   }, [pathname, closeAll]);
   // Pixel Meta : une vue de page à chaque changement d'adresse (pas dans l'administration).

@@ -46,74 +46,74 @@ export interface Product {
 }
 
 export const CATS: Record<CategoryId, [string, string]> = {
-  all: ['Tous les produits', 'Toute la sélection MaxiGadget, testée avant chaque expédition.'],
-  visage: ['Soin du visage', 'Lifting, LED, nettoyage : des soins d\u2019institut, à la maison.'],
-  massage: ['Massage', 'Pistolets, masseurs cervicaux et coussins pour détendre chaque muscle.'],
-  corps: ['Corps & minceur', 'Ceintures EMS, rouleaux et appareils pour sculpter et tonifier.'],
-  epilation: ['Épilation & cheveux', 'Épilateurs IPL, brosses lissantes et soins capillaires.'],
-  cosmetique: ['Cosmétiques', 'Sérums, crèmes et huiles pour compléter votre routine.'],
-  pack: ['Packs', 'Deux produits ou plus réunis, à prix réduit.'],
-  new: ['Nouveautés', 'Les derniers gadgets entrés dans la boutique.'],
+  all: ['جميع المنتجات', 'كل منتجات ماكسي غادجت، مجرَّبة قبل كل إرسال.'],
+  visage: ['العناية بالوجه', 'شدّ البشرة، العلاج بالضوء، التنظيف العميق: عناية المعهد في بيتك.'],
+  massage: ['التدليك', 'مسدسات التدليك وأجهزة الرقبة والوسائد لإرخاء كل العضلات.'],
+  corps: ['الجسم والتنحيف', 'أحزمة EMS وأجهزة لنحت الجسم وشدّه.'],
+  epilation: ['إزالة الشعر والعناية بالشعر', 'أجهزة IPL، فُرَش التمليس ومنتجات العناية بالشعر.'],
+  cosmetique: ['مستحضرات التجميل', 'سيروم، كريمات وزيوت لإكمال روتينك.'],
+  pack: ['العروض المجمّعة', 'منتجان أو أكثر في عرض واحد بسعر مخفَّض.'],
+  new: ['جديدنا', 'آخر المنتجات التي وصلت إلى المتجر.'],
 };
 
 export const COLLECTIONS: { id: CategoryId; label: string; sub: string; img: string }[] = [
-  { id: 'visage', label: 'Soin du visage', sub: 'Lifting, LED & éclat', img: 'soin visage' },
-  { id: 'massage', label: 'Massage', sub: 'Détente & récupération', img: 'massage' },
-  { id: 'corps', label: 'Corps & minceur', sub: 'Sculpter & tonifier', img: 'corps' },
-  { id: 'epilation', label: 'Épilation & cheveux', sub: 'Peau nette, cheveux lisses', img: 'épilation' },
-  { id: 'cosmetique', label: 'Cosmétiques', sub: 'Sérums & crèmes', img: 'cosmétiques' },
-  { id: 'pack', label: 'Packs', sub: 'Plus de produits, moins cher', img: 'pack' },
+  { id: 'visage', label: 'العناية بالوجه', sub: 'شدّ، ضوء LED وإشراقة', img: 'العناية بالوجه' },
+  { id: 'massage', label: 'التدليك', sub: 'استرخاء واسترجاع', img: 'التدليك' },
+  { id: 'corps', label: 'الجسم والتنحيف', sub: 'نحت وشدّ', img: 'الجسم' },
+  { id: 'epilation', label: 'إزالة الشعر والعناية بالشعر', sub: 'بشرة ناعمة وشعر أملس', img: 'إزالة الشعر' },
+  { id: 'cosmetique', label: 'مستحضرات التجميل', sub: 'سيروم وكريمات', img: 'مستحضرات التجميل' },
+  { id: 'pack', label: 'العروض المجمّعة', sub: 'منتجات أكثر بثمن أقل', img: 'عرض مجمّع' },
 ];
 
 export const FAQ: [string, string][] = [
-  ['Comment se passe le paiement ?', 'Vous payez à la livraison, en espèces, au moment où vous recevez le colis. Aucun paiement en ligne n\u2019est demandé.'],
-  ['Quels sont les délais de livraison ?', 'Nous vous appelons pour confirmer la commande, puis le colis part sous 24 h. Comptez 24 à 72 h selon votre ville, partout au Maroc.'],
-  ['La livraison est-elle payante ?', 'Non, la livraison est gratuite sur tous nos produits, partout au Maroc.'],
-  ['Puis-je vérifier le produit avant de payer ?', 'Oui, vous pouvez ouvrir le colis devant le livreur pour vérifier que le produit correspond à votre commande.'],
-  ['Et si le produit ne fonctionne pas ?', 'Chaque appareil est garanti. En cas de panne ou de défaut, contactez-nous : nous l\u2019échangeons ou le remboursons.'],
-  ['Puis-je retourner un produit ?', 'Vous disposez de 7 jours après la réception pour retourner un produit non utilisé, dans son emballage d\u2019origine.'],
-  ['Les appareils conviennent-ils à tous ?', 'La plupart oui. Évitez cependant les appareils EMS, chauffants ou à lumière pulsée pendant la grossesse ou avec un stimulateur cardiaque ; en cas de doute, demandez l\u2019avis de votre médecin.'],
+  ['كيف يتم الدفع؟', 'تدفع عند الاستلام، نقداً، عندما يصلك الطرد. لا نطلب أي دفع عبر الإنترنت.'],
+  ['ما هي مدة التوصيل؟', 'نتصل بك لتأكيد الطلب، ثم يُرسَل الطرد خلال 24 ساعة. التوصيل يستغرق من 24 إلى 72 ساعة حسب مدينتك، في جميع أنحاء المغرب.'],
+  ['هل التوصيل بمقابل؟', 'لا، التوصيل مجاني لجميع منتجاتنا وفي جميع مدن المغرب.'],
+  ['هل يمكنني فحص المنتج قبل الدفع؟', 'نعم، يمكنك فتح الطرد أمام عامل التوصيل للتأكد من أن المنتج مطابق لطلبك.'],
+  ['ماذا لو لم يعمل المنتج؟', 'كل أجهزتنا مضمونة. في حالة عطب أو عيب، اتصل بنا وسنقوم باستبداله أو استرجاع ثمنه.'],
+  ['هل يمكنني إرجاع منتج؟', 'لديك 7 أيام من تاريخ الاستلام لإرجاع منتج غير مستعمل في غلافه الأصلي.'],
+  ['هل الأجهزة مناسبة للجميع؟', 'أغلبها نعم. لكن يُنصح بتجنّب أجهزة EMS والأجهزة الحرارية وأجهزة الضوء النبضي أثناء الحمل أو لحاملي منظِّم ضربات القلب. عند الشك، استشر طبيبك.'],
 ];
 
 export const LEGAL: Record<'cgv' | 'privacy', { title: string; updated: string; sections: [string, string][] }> = {
   cgv: {
-    title: 'Conditions générales de vente',
-    updated: 'Mise à jour : octobre 2026',
+    title: 'الشروط العامة للبيع',
+    updated: 'آخر تحديث: أكتوبر 2026',
     sections: [
-      ['Objet', 'Les présentes conditions régissent les ventes de produits de beauté, de massage et de bien-être réalisées sur le site MaxiGadget auprès de clients particuliers.'],
-      ['Prix', 'Les prix sont indiqués en dirhams marocains (DH), toutes taxes comprises. La livraison est offerte partout au Maroc.'],
-      ['Commande', 'La commande est enregistrée dès sa validation sur le site ; nous vous contactons par téléphone pour la confirmer avant l\u2019expédition.'],
-      ['Paiement', 'Le paiement s\u2019effectue à la livraison, en espèces, à la réception du colis.'],
-      ['Livraison', 'Les commandes confirmées sont expédiées sous 24 h ouvrées et livrées en 24 à 72 h selon la ville.'],
-      ['Rétractation', 'Vous disposez de 7 jours à compter de la réception pour retourner un produit non utilisé, dans son emballage d\u2019origine.'],
-      ['Garantie', 'Les appareils électriques sont garantis contre tout défaut de fabrication pendant la durée indiquée sur la fiche produit, en plus des garanties légales.'],
-      ['Précautions', 'Respectez le mode d\u2019emploi fourni. Les appareils EMS, chauffants ou à lumière pulsée sont déconseillés pendant la grossesse et aux porteurs de stimulateur cardiaque.'],
+      ['الموضوع', 'تنظّم هذه الشروط عمليات بيع منتجات التجميل والتدليك والعناية التي تتم عبر موقع ماكسي غادجت للزبناء الأفراد.'],
+      ['الأسعار', 'الأسعار معروضة بالدرهم المغربي، شاملة لجميع الضرائب. التوصيل مجاني في جميع أنحاء المغرب.'],
+      ['الطلب', 'يُسجَّل الطلب فور تأكيده على الموقع، ثم نتصل بك هاتفياً لتأكيده قبل الإرسال.'],
+      ['الدفع', 'يتم الدفع عند الاستلام، نقداً، عند تسلّم الطرد.'],
+      ['التوصيل', 'تُرسَل الطلبات المؤكَّدة خلال 24 ساعة عمل وتصل في أجل يتراوح بين 24 و72 ساعة حسب المدينة.'],
+      ['الإرجاع', 'لديك 7 أيام من تاريخ الاستلام لإرجاع منتج غير مستعمل في غلافه الأصلي.'],
+      ['الضمان', 'الأجهزة الكهربائية مضمونة ضد عيوب التصنيع طيلة المدة المذكورة في صفحة المنتج، إضافةً إلى الضمانات القانونية.'],
+      ['احتياطات', 'احترم دليل الاستعمال المرفق. لا يُنصح باستعمال أجهزة EMS والأجهزة الحرارية وأجهزة الضوء النبضي أثناء الحمل أو لحاملي منظِّم ضربات القلب.'],
     ],
   },
   privacy: {
-    title: 'Politique de confidentialité',
-    updated: 'Mise à jour : octobre 2026',
+    title: 'سياسة الخصوصية',
+    updated: 'آخر تحديث: أكتوبر 2026',
     sections: [
-      ['Données collectées', 'Nom, téléphone, adresse de livraison et historique de commandes. Aucune donnée bancaire n\u2019est collectée sur le site.'],
-      ['Finalités', 'Traitement et confirmation des commandes, livraison, service client et, avec votre accord, offres promotionnelles.'],
-      ['Conservation', 'Les données sont conservées pendant la durée de la relation commerciale, puis archivées selon les obligations légales.'],
-      ['Vos droits', 'Vous disposez d\u2019un droit d\u2019accès, de rectification, d\u2019effacement et d\u2019opposition, exerçable à tout moment auprès de notre service client.'],
-      ['Cookies', 'Des cookies techniques assurent le fonctionnement du site ; les cookies de mesure d\u2019audience et publicitaires ne sont déposés qu\u2019avec votre consentement.'],
-      ['Contact', 'Pour toute question relative à vos données : contact@maxigadget.ma.'],
+      ['البيانات المجمَّعة', 'الاسم، رقم الهاتف، عنوان التوصيل وسجل الطلبات. لا نجمع أي بيانات بنكية على الموقع.'],
+      ['الغرض', 'معالجة الطلبات وتأكيدها، التوصيل، خدمة الزبناء، وبموافقتك، إرسال العروض.'],
+      ['مدة الحفظ', 'تُحفظ البيانات طيلة مدة العلاقة التجارية، ثم تُؤرشَف وفق الالتزامات القانونية.'],
+      ['حقوقك', 'لك حق الاطلاع والتصحيح والحذف والاعتراض، يمكنك ممارسته في أي وقت عبر خدمة الزبناء.'],
+      ['ملفات تعريف الارتباط', 'تضمن ملفات تقنية حسن سير الموقع؛ أما ملفات قياس الزيارات والإعلانات فلا تُستعمل إلا بموافقتك.'],
+      ['اتصل بنا', 'لأي سؤال يخص بياناتك: contact@maxigadget.ma.'],
     ],
   },
 };
 
 export const PILLARS = [
-  { n: '01', t: 'Produits testés', d: 'Chaque appareil est vérifié avant l\u2019envoi : charge, modes, accessoires.' },
-  { n: '02', t: 'Paiement à la livraison', d: 'Vous ne payez qu\u2019à la réception, après avoir vu votre colis.' },
-  { n: '03', t: 'Service client à l\u2019écoute', d: 'Conseils d\u2019utilisation, suivi de commande, échange en cas de souci.' },
+  { n: '01', t: 'منتجات مجرَّبة', d: 'نتحقق من كل جهاز قبل إرساله: الشحن، الأوضاع والملحقات.' },
+  { n: '02', t: 'الدفع عند الاستلام', d: 'لا تدفع إلا عند الاستلام، بعد أن ترى طردك.' },
+  { n: '03', t: 'خدمة زبناء في الاستماع', d: 'نصائح الاستعمال، تتبّع الطلب، واستبدال عند أي مشكل.' },
 ];
 
-/** Prix en dirhams marocains : « 13 900 DH ». */
-export const fmt = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' DH';
+/** Prix en dirhams marocains : « 1 290 درهم » (chiffres latins, comme au Maroc). */
+export const fmt = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' درهم';
 export const stars = (r: number) => '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r));
-export const ratingF = (r: number) => r.toFixed(1).replace('.', ',');
+export const ratingF = (r: number) => r.toFixed(1);
 export const isNew = (p: Product) => p.cats.includes('new');
 export const badgeOf = (p: Product) =>
-  p.old ? '−' + Math.round((1 - p.price / p.old) * 100) + ' %' : isNew(p) ? 'Nouveau' : '';
+  p.old ? '\u2066−' + Math.round((1 - p.price / p.old) * 100) + '%\u2069' : isNew(p) ? 'جديد' : '';

@@ -50,7 +50,7 @@ export function toShopProduct(p: ApiShopProduct): Product {
     price: cheapest ? cheapest.price : dh(p.finalPriceCents),
     old: cheapest ? cheapest.old : p.onSale ? dh(p.priceCents) : null,
     hasRange: p.hasPriceRange, rating: p.ratingAvg, reviews: p.ratingCount, inStock: p.inStock, purchasable: p.purchasable,
-    stock: !p.inStock ? 'Épuisé — bientôt de retour' : p.lowStock && p.stock ? `Plus que ${p.stock} en stock` : 'En stock — expédié sous 24 h',
+    stock: !p.inStock ? 'نفد المخزون — سيعود قريباً' : p.lowStock && p.stock ? `بقي ${p.stock} فقط في المخزون` : 'متوفر — يُرسَل خلال 24 ساعة',
     features: (x.features ?? []).filter(Boolean), specs: (x.specs ?? []).filter(([k, v]) => k && v), warranty: p.warrantyMonths,
     desc: p.description, publishedAt: p.publishedAt,
     options: p.options.map((o) => ({ name: o.name, values: o.values.map(swatch) })), variants, swatches: p.swatches.map(swatch),

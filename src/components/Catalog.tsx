@@ -16,7 +16,7 @@ export function ProductCard({ p }: { p: Product }) {
   const navigate = useNavigate();
   const { add, favs, toggleFav } = useStore();
   const fav = favs.includes(p.id);
-  const badge = p.inStock ? badgeOf(p) : 'Épuisé';
+  const badge = p.inStock ? badgeOf(p) : 'نفد';
   const needsChoice = p.variants.length > 1;
   const tilt = useTilt<HTMLDivElement>();
   return (
@@ -30,26 +30,26 @@ export function ProductCard({ p }: { p: Product }) {
         </div>
         <span className="tilt-glare" />
         {p.brand && (
-          <span style={{ position: 'absolute', top: 12, left: 12, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(8px)', fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink)', fontWeight: 600 }}>{p.brand}</span>
+          <span style={{ position: 'absolute', top: 12, insetInlineStart: 12, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,.92)', backdropFilter: 'blur(8px)', fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--ink)', fontWeight: 600 }}>{p.brand}</span>
         )}
         {badge && !p.brand && (
-          <span style={{ position: 'absolute', top: 12, left: 12, padding: '6px 10px', borderRadius: 999, background: p.old && p.inStock ? 'var(--promo)' : p.inStock ? 'var(--accent)' : '#fff', color: p.inStock ? '#fff' : 'var(--ink)', fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>{badge}</span>
+          <span style={{ position: 'absolute', top: 12, insetInlineStart: 12, padding: '6px 10px', borderRadius: 999, background: p.old && p.inStock ? 'var(--promo)' : p.inStock ? 'var(--accent)' : '#fff', color: p.inStock ? '#fff' : 'var(--ink)', fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>{badge}</span>
         )}
         {badge && p.brand && (
-          <span style={{ position: 'absolute', top: 12, right: 56, padding: '6px 10px', borderRadius: 999, background: p.old ? 'var(--promo)' : 'rgba(255,255,255,.9)', color: p.old ? '#fff' : 'var(--ink)', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase' }}>{badge}</span>
+          <span style={{ position: 'absolute', top: 12, insetInlineEnd: 56, padding: '6px 10px', borderRadius: 999, background: p.old ? 'var(--promo)' : 'rgba(255,255,255,.9)', color: p.old ? '#fff' : 'var(--ink)', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase' }}>{badge}</span>
         )}
         <button
           onClick={(e) => { e.stopPropagation(); toggleFav(p.id); }}
-          aria-label={fav ? `Retirer ${p.name} des favoris` : `Ajouter ${p.name} aux favoris`} aria-pressed={fav}
-          style={{ position: 'absolute', top: 8, right: 8, width: 40, height: 40, borderRadius: '50%', border: 0, background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          aria-label={fav ? `إزالة ${p.name} من المفضلة` : `إضافة ${p.name} إلى المفضلة`} aria-pressed={fav}
+          style={{ position: 'absolute', top: 8, insetInlineEnd: 8, width: 40, height: 40, borderRadius: '50%', border: 0, background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
           <HeartIcon fill={fav ? '#e0435a' : 'none'} color={fav ? '#e0435a' : undefined} />
         </button>
         {p.inStock && p.purchasable && <button
           // Avec plusieurs déclinaisons, le choix (couleur, modèle…) se fait sur la fiche.
           onClick={(e) => { e.stopPropagation(); if (needsChoice) navigate(productPath(p.id)); else add(p.id, 1, p.variants[0]?.id); }}
-          aria-label={needsChoice ? `Choisir les options de ${p.name}` : `Ajouter ${p.name} au panier`}
-          style={{ position: 'absolute', right: 10, bottom: 10, width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--gold)', boxShadow: '0 6px 16px rgba(245,184,46,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform .35s' }}
+          aria-label={needsChoice ? `اختيار خيارات ${p.name}` : `إضافة ${p.name} إلى السلة`}
+          style={{ position: 'absolute', insetInlineEnd: 10, bottom: 10, width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--gold)', boxShadow: '0 6px 16px rgba(245,184,46,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform .35s' }}
           onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.07)')}
           onMouseLeave={(e) => (e.currentTarget.style.transform = 'none')}
         >
@@ -60,11 +60,11 @@ export function ProductCard({ p }: { p: Product }) {
         <span className="mono" style={{ fontSize: 10, letterSpacing: '.12em' }}>{p.kind}</span>
         <h3 style={{ margin: 0, fontWeight: 700, fontSize: 15, letterSpacing: '.01em', lineHeight: 1.35 }}>{p.name}</h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 10, fontSize: 15 }}>
-          <span style={{ fontWeight: 800, fontSize: 17, color: p.old ? 'var(--promo)' : 'var(--ink)' }}>{p.hasRange ? 'dès ' : ''}{fmt(p.price)}</span>
+          <span style={{ fontWeight: 800, fontSize: 17, color: p.old ? 'var(--promo)' : 'var(--ink)' }}>{p.hasRange ? 'ابتداءً من ' : ''}{fmt(p.price)}</span>
           {p.old && <span style={{ fontSize: 13, color: 'var(--graphite)', textDecoration: 'line-through' }}>{fmt(p.old)}</span>}
         </div>
         {p.swatches.length > 1 && (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} aria-label={`Coloris : ${p.swatches.map((s) => s.label).join(', ')}`}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} aria-label={`الألوان: ${p.swatches.map((s) => s.label).join('، ')}`}>
             {p.swatches.slice(0, 5).map((s) => (
               <span key={s.label} title={s.label} style={{ width: 12, height: 12, borderRadius: '50%', background: s.colorHex ?? '#fff', boxShadow: 'inset 0 0 0 1px rgba(18,41,77,.18)' }} />
             ))}
@@ -72,7 +72,7 @@ export function ProductCard({ p }: { p: Product }) {
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'var(--graphite)' }}>
-          {p.reviews > 0 ? <><span style={{ color: 'var(--gold-2)', letterSpacing: '.1em' }} aria-label={`Note ${p.rating} sur 5`}>{stars(p.rating)}</span><span>({p.reviews})</span></> : <span>🚚 Livraison gratuite</span>}
+          {p.reviews > 0 ? <><span style={{ color: 'var(--gold-2)', letterSpacing: '.1em' }} aria-label={`التقييم ${p.rating} من 5`}>{stars(p.rating)}</span><span>({p.reviews})</span></> : <span>🚚 توصيل مجاني</span>}
         </div>
       </div>
     </article>
@@ -84,7 +84,7 @@ export function ProductGrid({ items }: { items: Product[] }) {
   const { status, reload } = useCatalog();
   if (status === 'loading' && !items.length) {
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: L.g4, columnGap: L.gap, rowGap: L.rowGap }} aria-busy="true" aria-label="Chargement des produits">
+      <div style={{ display: 'grid', gridTemplateColumns: L.g4, columnGap: L.gap, rowGap: L.rowGap }} aria-busy="true" aria-label="جارٍ تحميل المنتجات">
         {[0, 1, 2, 3].map((i) => <div key={i} className="ph" style={{ aspectRatio: '4/5', opacity: 0.6 }} />)}
       </div>
     );
@@ -92,8 +92,8 @@ export function ProductGrid({ items }: { items: Product[] }) {
   if (status === 'error') {
     return (
       <div style={{ padding: '40px 0', display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' }}>
-        <p style={{ margin: 0, fontSize: 15.5, color: 'var(--muted)' }}>Le catalogue est momentanément indisponible.</p>
-        <button className="btn btn-outline" onClick={reload} style={{ height: 48, padding: '0 24px' }}>Réessayer</button>
+        <p style={{ margin: 0, fontSize: 15.5, color: 'var(--muted)' }}>الكتالوج غير متاح حالياً.</p>
+        <button className="btn btn-outline" onClick={reload} style={{ height: 48, padding: '0 24px' }}>إعادة المحاولة</button>
       </div>
     );
   }
@@ -121,7 +121,7 @@ export function CollectionsGrid() {
                 <div className="ph zoom-hover" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Dial size="28%" />
                 </div>
-                <span className="ph-caption" style={{ left: 14, bottom: 12, fontSize: 9.5, letterSpacing: '.12em' }}>photo · {c.img}</span>
+                <span className="ph-caption" style={{ insetInlineStart: 14, bottom: 12, fontSize: 11 }}>صورة · {c.img}</span>
               </>
             )}
           </div>
@@ -147,7 +147,7 @@ export function Eyebrow({ children, style }: { children: React.ReactNode; style?
 
 export function Crumbs({ items }: { items: [string, string?][] }) {
   return (
-    <nav aria-label="Fil d’Ariane" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--graphite)' }}>
+    <nav aria-label="مسار التصفح" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--graphite)' }}>
       {items.map(([label, to], i) => (
         <span key={label} style={{ display: 'flex', gap: 10 }}>
           {i > 0 && <span>/</span>}

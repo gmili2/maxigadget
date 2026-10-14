@@ -156,10 +156,10 @@ export class CheckoutService {
       const out = problems.find((x) => x.reason === 'OUT_OF_STOCK');
       const showcase = problems.find((x) => x.reason === 'NOT_FOR_SALE');
       throw err(HttpStatus.CONFLICT, 'CART_INVALID', showcase
-        ? 'Un produit de votre panier n’est pas disponible à la vente'
+        ? 'أحد منتجات سلتك غير متاح للبيع'
         : out
-        ? 'Un produit de votre panier n’est plus disponible en quantité suffisante'
-        : 'Un produit de votre panier n’est plus disponible', problems);
+        ? 'أحد منتجات سلتك لم يعد متوفراً بالكمية المطلوبة'
+        : 'أحد منتجات سلتك لم يعد متوفراً', problems);
     }
     const subtotal = lines.reduce((n, l) => n + l.totalCents, 0);
 
@@ -170,17 +170,17 @@ export class CheckoutService {
       const c = await db.coupon.findUnique({ where: { code: dto.couponCode } });
       const now = new Date();
       if (!c || !c.isActive || (c.startsAt && c.startsAt > now) || (c.expiresAt && c.expiresAt < now)) {
-        throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COUPON_INVALID', 'Ce code promo n’est pas valable');
+        throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COUPON_INVALID', 'رمز التخفيض هذا غير صالح');
       }
       if (lock) await db.$queryRaw`SELECT id FROM coupons WHERE id = ${c.id} FOR UPDATE`;
       const used = lock ? (await db.coupon.findUniqueOrThrow({ where: { id: c.id } })).usedCount : c.usedCount;
-      if (c.maxUses != null && used >= c.maxUses) throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COUPON_EXHAUSTED', 'Ce code promo a atteint sa limite d’utilisation');
+      if (c.maxUses != null && used >= c.maxUses) throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COUPON_EXHAUSTED', 'رمز التخفيض هذا وصل إلى حدّ الاستعمال');
       if (subtotal < c.minOrderCents) {
-        throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COUPON_MINIMUM', `Ce code est valable dès ${(c.minOrderCents / 100).toLocaleString('fr-FR')} DH d’achat`);
+        throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COUPON_MINIMUM', `هذا الرمز صالح ابتداءً من ${(c.minOrderCents / 100).toLocaleString('fr-FR')} درهم من المشتريات`);
       }
       if (userId) {
         const mine = await db.couponRedemption.count({ where: { couponId: c.id, userId } });
-        if (mine >= c.maxUsesPerUser) throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COUPON_ALREADY_USED', 'Vous avez déjà utilisé ce code promo');
+        if (mine >= c.maxUsesPerUser) throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COUPON_ALREADY_USED', 'سبق لك استعمال رمز التخفيض هذا');
       }
       discount = c.type === 'PERCENTAGE' ? Math.round((subtotal * c.value) / 100) : c.value;
       if (c.maxDiscountCents != null) discount = Math.min(discount, c.maxDiscountCents);
@@ -193,9 +193,9 @@ export class CheckoutService {
       where: { ...(dto.shippingMethodId && { id: dto.shippingMethodId }), isActive: true, zone: { isActive: true, countries: { path: '$', array_contains: [dto.country] } } },
       orderBy: { position: 'asc' },
     });
-    if (!method) throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'SHIPPING_UNAVAILABLE', 'Mode de livraison indisponible pour cette adresse');
+    if (!method) throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'SHIPPING_UNAVAILABLE', 'التوصيل غير متاح لهذا العنوان');
     if (dto.paymentMethod === PaymentMethod.CASH_ON_DELIVERY && !method.codAllowed) {
-      throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COD_UNAVAILABLE', 'Le paiement à la livraison n’est pas proposé avec ce mode de livraison');
+      throw err(HttpStatus.UNPROCESSABLE_ENTITY, 'COD_UNAVAILABLE', 'الدفع عند الاستلام غير متاح مع طريقة التوصيل هذه');
     }
     const free = method.freeAboveCents != null && subtotal - discount >= method.freeAboveCents;
     const shipping = (free ? 0 : method.priceCents) + (dto.paymentMethod === PaymentMethod.CASH_ON_DELIVERY ? method.codFeeCents : 0);

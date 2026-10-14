@@ -32,22 +32,22 @@ const CUSTOMERS: [name: string, email: string, since: string][] = [
 type Pay = 'Payé' | 'À encaisser' | 'Échoué' | 'Remboursé';
 const ORDERS: [number: string, email: string, date: string, items: [slug: string, qty: number, variant?: string][], status: OrderStatus, method: PaymentMethod, pay: Pay][] = [
   ['MG-284117', 'camille.martin@mail.fr', '07/10/2026 11:42', [['pack-beaute-bien-etre', 1]], 'PENDING', 'CASH_ON_DELIVERY', 'À encaisser'],
-  ['MG-284116', 'hugo.b@mail.fr', '07/10/2026 09:15', [['fascia-gun', 1, 'Noir'], ['neck-beauty-device', 1]], 'CONFIRMED', 'CASH_ON_DELIVERY', 'À encaisser'],
+  ['MG-284116', 'hugo.b@mail.fr', '07/10/2026 09:15', [['fascia-gun', 1, 'أسود'], ['neck-beauty-device', 1]], 'CONFIRMED', 'CASH_ON_DELIVERY', 'À encaisser'],
   ['MG-284115', 'lea.dubois@mail.fr', '06/10/2026 18:03', [['neck-beauty-device', 2]], 'PROCESSING', 'CASH_ON_DELIVERY', 'À encaisser'],
   ['MG-284114', 'nadia.h@mail.fr', '06/10/2026 14:27', [['pack-beaute-bien-etre', 1]], 'SHIPPED', 'CASH_ON_DELIVERY', 'À encaisser'],
-  ['MG-284113', 't.petit@mail.fr', '05/10/2026 10:50', [['fascia-gun', 1, 'Blanc']], 'DELIVERED', 'CASH_ON_DELIVERY', 'Payé'],
+  ['MG-284113', 't.petit@mail.fr', '05/10/2026 10:50', [['fascia-gun', 1, 'أبيض']], 'DELIVERED', 'CASH_ON_DELIVERY', 'Payé'],
   ['MG-284112', 'ines.moreau@mail.fr', '04/10/2026 16:11', [['neck-beauty-device', 1]], 'DELIVERED', 'CASH_ON_DELIVERY', 'Payé'],
-  ['MG-284111', 'k.benali@mail.fr', '03/10/2026 12:38', [['fascia-gun', 1, 'Blanc']], 'CANCELLED', 'CASH_ON_DELIVERY', 'Échoué'],
+  ['MG-284111', 'k.benali@mail.fr', '03/10/2026 12:38', [['fascia-gun', 1, 'أبيض']], 'CANCELLED', 'CASH_ON_DELIVERY', 'Échoué'],
   ['MG-284110', 'julie.l@mail.fr', '02/10/2026 20:04', [['neck-beauty-device', 1]], 'REFUNDED', 'CASH_ON_DELIVERY', 'Remboursé'],
-  ['MG-284109', 'a.leroy@mail.fr', '01/10/2026 08:47', [['pack-beaute-bien-etre', 1], ['fascia-gun', 1, 'Noir']], 'DELIVERED', 'CASH_ON_DELIVERY', 'Payé'],
+  ['MG-284109', 'a.leroy@mail.fr', '01/10/2026 08:47', [['pack-beaute-bien-etre', 1], ['fascia-gun', 1, 'أسود']], 'DELIVERED', 'CASH_ON_DELIVERY', 'Payé'],
 ];
 const FLOW: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
 
 const REVIEWS: [slug: string, email: string, date: string, rating: number, title: string, comment: string, approved: boolean][] = [
-  ['pack-beaute-bien-etre', 'a.leroy@mail.fr', '06/10/2026', 5, 'Très bon rapport qualité-prix', 'Les deux appareils fonctionnent très bien, livraison rapide à Casablanca.', false],
-  ['neck-beauty-device', 'ines.moreau@mail.fr', '06/10/2026', 5, 'Ma mère adore', 'Facile à utiliser, la peau du cou est plus tonique après deux semaines.', false],
-  ['neck-beauty-device', 'julie.l@mail.fr', '04/10/2026', 3, 'Correct', 'Bon appareil mais j’attendais un effet plus rapide.', false],
-  ['fascia-gun', 't.petit@mail.fr', '01/10/2026', 5, 'Parfait après le sport', 'Puissant et silencieux, la batterie tient longtemps.', true],
+  ['pack-beaute-bien-etre', 'a.leroy@mail.fr', '06/10/2026', 5, 'جودة ممتازة مقابل الثمن', 'الجهازان يعملان بشكل جيد جداً، والتوصيل كان سريعاً إلى الدار البيضاء.', false],
+  ['neck-beauty-device', 'ines.moreau@mail.fr', '06/10/2026', 5, 'أمي أحبّته كثيراً', 'سهل الاستعمال، وبشرة الرقبة أصبحت أكثر شدّاً بعد أسبوعين.', false],
+  ['neck-beauty-device', 'julie.l@mail.fr', '04/10/2026', 3, 'لا بأس', 'جهاز جيد لكنني كنت أنتظر نتيجة أسرع.', false],
+  ['fascia-gun', 't.petit@mail.fr', '01/10/2026', 5, 'ممتاز بعد الرياضة', 'قوي وهادئ، والبطارية تدوم طويلاً.', true],
 ];
 
 async function reset() {

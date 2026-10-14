@@ -43,7 +43,7 @@ export default function Shop() {
   return (
     <>
       <section data-reveal style={{ padding: `${L.pageTop} ${L.px} 28px`, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <Crumbs items={[['Accueil', '/'], ['Produits', cat === 'all' ? undefined : shopPath('all')], ...(cat === 'all' ? [] : [[title] as [string]])]} />
+        <Crumbs items={[['الرئيسية', '/'], ['المنتجات', cat === 'all' ? undefined : shopPath('all')], ...(cat === 'all' ? [] : [[title] as [string]])]} />
         <h1 className="display" style={{ lineHeight: 1, fontSize: L.h2 }}>{title}</h1>
         <p style={{ margin: 0, maxWidth: 520, color: 'var(--muted)', fontSize: 15, lineHeight: 1.6 }}>{sub}</p>
       </section>
@@ -52,25 +52,25 @@ export default function Shop() {
           <div className="hscroll" style={{ display: 'flex', gap: 6, maxWidth: '100%', paddingBottom: 2 }}>
             {(Object.keys(CATS) as CategoryId[]).filter((id) => !hidden(id)).map((id) => (
               <button key={id} className={`chip${cat === id ? ' active' : ''}`} onClick={() => navigate(shopPath(id))}>
-                {id === 'all' ? 'Tous' : CATS[id][0]}
+                {id === 'all' ? 'الكل' : CATS[id][0]}
               </button>
             ))}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: 'var(--graphite)' }}>
-            <span>{items.length > PER_PAGE ? `${(page - 1) * PER_PAGE + 1}–${Math.min(page * PER_PAGE, items.length)} sur ` : ''}{items.length} produit{items.length > 1 ? 's' : ''}</span>
+            <span>{items.length > PER_PAGE ? `${(page - 1) * PER_PAGE + 1}–${Math.min(page * PER_PAGE, items.length)} من ` : ''}{items.length} منتج</span>
             <select
-              value={sort} onChange={(e) => { setSort(e.target.value as Sort); setParams({}); }} aria-label="Trier par"
+              value={sort} onChange={(e) => { setSort(e.target.value as Sort); setParams({}); }} aria-label="ترتيب حسب"
               style={{ height: 40, padding: '0 14px', border: '1px solid var(--line-strong)', borderRadius: 999, background: '#fff', color: 'var(--ink)', fontSize: 13, cursor: 'pointer' }}
             >
-              <option value="pop">Popularité</option>
-              <option value="new">Nouveautés</option>
-              <option value="asc">Prix croissant</option>
-              <option value="desc">Prix décroissant</option>
+              <option value="pop">الأكثر شعبية</option>
+              <option value="new">الأحدث</option>
+              <option value="asc">السعر: من الأقل إلى الأعلى</option>
+              <option value="desc">السعر: من الأعلى إلى الأقل</option>
             </select>
           </div>
         </div>
-        {items.length || status !== 'ready' ? <ProductGrid items={shown} /> : <p>Aucun produit dans cette catégorie pour le moment. <Link to={shopPath('all')}>Voir tous les produits</Link></p>}
-        <Pagination page={page} pages={pages} onChange={goTo} label="Pages de produits" />
+        {items.length || status !== 'ready' ? <ProductGrid items={shown} /> : <p>لا توجد منتجات في هذا القسم حالياً. <Link to={shopPath('all')}>عرض جميع المنتجات</Link></p>}
+        <Pagination page={page} pages={pages} onChange={goTo} label="صفحات المنتجات" />
       </section>
     </>
   );
@@ -81,8 +81,8 @@ export function Collections() {
   return (
     <>
       <section data-reveal style={{ padding: `${L.pageTop} ${L.px} 8px`, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <span className="mono">Beauté, massage & bien-être</span>
-        <h1 className="display" style={{ lineHeight: 1, fontSize: L.h2 }}>Catégories</h1>
+        <span className="mono">تجميل، تدليك وعناية</span>
+        <h1 className="display" style={{ lineHeight: 1, fontSize: L.h2 }}>الأقسام</h1>
       </section>
       <section data-reveal style={{ padding: `40px ${L.px} 0` }}>
         <CollectionsGrid />

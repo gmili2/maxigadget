@@ -17,19 +17,19 @@ export const VARIANTS: Record<string, {
   variants: { values: string[]; suffix: string; stock: number; priceCents?: number }[];
 }> = {
   'fascia-gun': {
-    options: [{ name: 'Couleur', values: [['Blanc', '#F2F2F0'], ['Noir', '#1D1D1F']] }],
-    variants: [{ values: ['Blanc'], suffix: 'BL', stock: 30 }, { values: ['Noir'], suffix: 'NO', stock: 15 }],
+    options: [{ name: 'اللون', values: [['أبيض', '#F2F2F0'], ['أسود', '#1D1D1F']] }],
+    variants: [{ values: ['أبيض'], suffix: 'BL', stock: 30 }, { values: ['أسود'], suffix: 'NO', stock: 15 }],
   },
 };
 
 /* Images de départ : photos présentes dans public/ (remplaçables depuis Admin → Catégories). */
 export const CATEGORIES: [slug: string, name: string, description: string, imageUrl: string | null][] = [
-  ['soin-visage', 'Soin du visage', 'Lifting, LED, nettoyage : des soins d’institut, à la maison.', '/neck-beauty-device.jpg'],
-  ['massage', 'Massage', 'Pistolets, masseurs cervicaux et coussins pour détendre chaque muscle.', '/fascia-gun.jpg'],
-  ['corps-minceur', 'Corps & minceur', 'Ceintures EMS, rouleaux et appareils pour sculpter et tonifier.', null],
-  ['epilation-cheveux', 'Épilation & cheveux', 'Épilateurs IPL, brosses lissantes et soins capillaires.', null],
-  ['cosmetiques', 'Cosmétiques', 'Sérums, crèmes et huiles pour compléter votre routine.', null],
-  ['packs', 'Packs', 'Deux produits ou plus réunis, à prix réduit.', '/pack-beaute-bien-etre.jpg'],
+  ['soin-visage', 'العناية بالوجه', 'شدّ البشرة، العلاج بالضوء، التنظيف العميق: عناية المعهد في بيتك.', '/neck-beauty-device.jpg'],
+  ['massage', 'التدليك', 'مسدسات التدليك وأجهزة الرقبة والوسائد لإرخاء كل العضلات.', '/fascia-gun.jpg'],
+  ['corps-minceur', 'الجسم والتنحيف', 'أحزمة EMS وأجهزة لنحت الجسم وشدّه.', null],
+  ['epilation-cheveux', 'إزالة الشعر والعناية بالشعر', 'أجهزة IPL، فُرَش التمليس ومنتجات العناية بالشعر.', null],
+  ['cosmetiques', 'مستحضرات التجميل', 'سيروم، كريمات وزيوت لإكمال روتينك.', null],
+  ['packs', 'العروض المجمّعة', 'منتجان أو أكثر في عرض واحد بسعر مخفَّض.', '/pack-beaute-bien-etre.jpg'],
 ];
 
 export type CatalogProduct = { id: string; name: string; sku: string; unit: number; variants: Record<string, { id: string; sku: string; unit: number }> };
@@ -52,7 +52,7 @@ export async function installReferenceData(prisma: PrismaClient) {
   if (!shipping) {
     const zone = await prisma.shippingZone.create({ data: { name: 'Maroc', countries: ['MA'] } });
     shipping = await prisma.shippingMethod.create({
-      data: { zoneId: zone.id, name: 'Livraison gratuite', carrier: 'Amana', priceCents: 0, minDays: 1, maxDays: 3, codAllowed: true, position: 0 },
+      data: { zoneId: zone.id, name: 'توصيل مجاني', carrier: 'Amana', priceCents: 0, minDays: 1, maxDays: 3, codAllowed: true, position: 0 },
     });
   }
   return { brands, cats, shipping };

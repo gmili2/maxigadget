@@ -22,6 +22,12 @@
   --sans: 'Montserrat', system-ui, sans-serif;
 }
 
+/* Boutique en arabe (RTL) : police Cairo ; l'espacement des lettres casse la liaison des lettres arabes. */
+[dir='rtl'] { --sans: 'Cairo', 'Montserrat', system-ui, sans-serif; --mono: 'Cairo', 'Montserrat', system-ui, sans-serif; }
+[dir='rtl'] body, [dir='rtl'] * { letter-spacing: 0 !important; }
+[dir='rtl'] .icon-arrow { transform: scaleX(-1); }
+[dir='rtl'] .display { line-height: 1.3; }
+
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
@@ -158,7 +164,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 }
 .ph-caption {
   position: absolute;
-  left: 16px;
+  inset-inline-start: 16px;
   bottom: 14px;
   font-family: var(--mono);
   font-size: 10px;
