@@ -6,10 +6,12 @@ Options -Indexes
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # Forcer HTTPS : décommentez ces 3 lignes une fois le certificat SSL actif (cPanel → SSL Status).
-  # RewriteCond %{HTTPS} off
-  # RewriteCond %{HTTP:X-Forwarded-Proto} !https
-  # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  # Adresse unique : https://maxigadget.store (sans www). Le certificat SSL est géré par l'hébergement.
+  RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+  RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+  RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
   # /api est servi par l'application Node.js (cPanel → Setup Node.js App).
   RewriteRule ^api(/|$) - [L]
