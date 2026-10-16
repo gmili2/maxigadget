@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { AppError } from './http';
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
 /** Sous /api : en hébergement cPanel, seul ce chemin est confié à l'application Node.js. */
 export const UPLOADS_URL = '/api/uploads';
 
@@ -16,6 +17,13 @@ function detect(buf: Buffer): 'jpg' | 'png' | 'webp' | null {
   if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
   if (buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
   if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
+
+/** Vidéos : MP4 et MOV (boîte « ftyp »), WebM (en-tête EBML). */
+function detectVideo(buf: Buffer): 'mp4' | 'mov' | 'webm' | null {
+  if (buf.length > 12 && buf.toString('ascii', 4, 8) === 'ftyp') return buf.toString('ascii', 8, 10) === 'qt' ? 'mov' : 'mp4';
+  if (buf.length > 4 && buf.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return 'webm';
   return null;
 }
 
@@ -55,6 +63,17 @@ export class UploadsService {
     await mkdir(join(this.root, folder), { recursive: true });
     await writeFile(join(this.root, folder, name), buffer, { flag: 'wx' });
     return { key: `${folder}/${name}`, url: `${UPLOADS_URL}/${folder}/${name}` };
+  }
+
+  async saveVideo(file: Express.Multer.File | undefined) {
+    if (!file?.buffer?.length) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Aucune vidéo reçue');
+    if (file.buffer.length > MAX_VIDEO_BYTES) throw new AppError(HttpStatus.PAYLOAD_TOO_LARGE, 'FILE_TOO_LARGE', 'Vidéo trop lourde (40 Mo maximum)');
+    const ext = detectVideo(file.buffer);
+    if (!ext) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_TYPE', 'Format accepté : MP4, MOV ou WebM');
+    const name = `${randomUUID()}.${ext}`;
+    await mkdir(join(this.root, 'videos'), { recursive: true });
+    await writeFile(join(this.root, 'videos', name), file.buffer, { flag: 'wx' });
+    return { key: `videos/${name}`, url: `${UPLOADS_URL}/videos/${name}` };
   }
 
   /**

@@ -37,6 +37,7 @@ const include = {
   category: { select: { name: true, slug: true } },
   collection: { select: { name: true, slug: true } },
   images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }], select: { url: true, alt: true, width: true, height: true, isPrimary: true } },
+  videos: { orderBy: { position: 'asc' }, select: { url: true } },
   ...variantInclude,
 } satisfies Prisma.ProductInclude;
 type ProductRow = Prisma.ProductGetPayload<{ include: typeof include }>;
@@ -150,7 +151,7 @@ export class CatalogController {
       color: p.color, dialColor: p.dialColor, diameterMm: Number(p.diameterMm), thicknessMm: p.thicknessMm == null ? null : Number(p.thicknessMm),
       lugWidthMm: p.lugWidthMm, waterResistanceM: p.waterResistanceM, glass: p.glass, powerReserveHours: p.powerReserveHours,
       warrantyMonths: p.warrantyMonths, extraSpecs: p.extraSpecs, ratingAvg: Number(p.ratingAvg), ratingCount: p.ratingCount,
-      publishedAt: p.publishedAt, images: p.images,
+      publishedAt: p.publishedAt, images: p.images, videos: p.videos.map((v) => v.url),
       swatches: options.find((o) => o.values.some((v) => v.colorHex))?.values ?? [],
       options, variants,
     };

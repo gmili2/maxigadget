@@ -10,7 +10,7 @@ import {
 import { AuditService } from '../common/audit.service';
 import { CurrentUser, Roles, type AuthUser } from '../common/decorators';
 import { AppError, PageQuery, paged, skipTake } from '../common/http';
-import { MAX_UPLOAD_BYTES, UploadsService } from '../common/uploads.service';
+import { MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES, UploadsService } from '../common/uploads.service';
 import { ImportService } from './import.service';
 import { PrismaService } from '../prisma.service';
 import { replaceVariants, syncProductStock, variantInclude, variantValues, VariantsDto } from './variants';
@@ -72,6 +72,7 @@ const include = {
   category: { select: { id: true, name: true, slug: true } },
   collection: { select: { id: true, name: true, slug: true } },
   images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }] },
+  videos: { orderBy: { position: 'asc' } },
   ...variantInclude,
 } satisfies Prisma.ProductInclude;
 
@@ -296,5 +297,62 @@ export class AdminProductsController {
     });
     await this.uploads.removeByUrl(url);
     return { data: toDto(data) };
+  }
+
+  /* ---------- vidéos ---------- */
+
+  @Post(':id/videos')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_VIDEO_BYTES, files: 1 } }))
+  async addVideo(@Param('id', ParseUUIDPipe) id: string, @UploadedFile() file: Express.Multer.File, @CurrentUser() me: AuthUser) {
+    const product = await this.prisma.product.findUniqueOrThrow({ where: { id }, include: { videos: true } });
+    if (product.videos.length >= 4) throw new AppError(HttpStatus.CONFLICT, 'TOO_MANY_VIDEOS', '4 vidéos au maximum par produit');
+    const saved = await this.uploads.saveVideo(file);
+    try {
+      const data = await this.prisma.$transaction(async (tx) => {
+        await tx.productVideo.create({
+          data: { productId: id, storageKey: saved.key, url: saved.url, position: Math.max(-1, ...product.videos.map((v) => v.position)) + 1 },
+        });
+        await this.audit.log(me.id, 'product.video_add', 'product', id, { url: saved.url }, tx);
+        return tx.product.findUniqueOrThrow({ where: { id }, include });
+      });
+      return { data: toDto(data) };
+    } catch (e) {
+      await this.uploads.removeByUrl(saved.url);
+      throw e;
+    }
+  }
+
+  @Delete(':id/videos/:videoId')
+  async removeVideo(@Param('id', ParseUUIDPipe) id: string, @Param('videoId', ParseUUIDPipe) videoId: string, @CurrentUser() me: AuthUser) {
+    const video = await this.prisma.productVideo.findFirstOrThrow({ where: { id: videoId, productId: id } });
+    const data = await this.prisma.$transaction(async (tx) => {
+      await tx.productVideo.delete({ where: { id: videoId } });
+      await this.audit.log(me.id, 'product.video_remove', 'product', id, { url: video.url }, tx);
+      return tx.product.findUniqueOrThrow({ where: { id }, include });
+    });
+    await this.uploads.removeByUrl(video.url);
+    return { data: toDto(data) };
+  }
+
+  /* ---------- suppression définitive ---------- */
+
+  /**
+   * Supprime la montre et ses fichiers (photos, vidéos). Déclinaisons, avis, paniers et favoris partent avec elle ;
+   * les commandes passées gardent leurs lignes (nom, prix) et les photos qu'elles affichent.
+   */
+  @Delete(':id')
+  @HttpCode(204)
+  async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() me: AuthUser) {
+    const p = await this.prisma.product.findUniqueOrThrow({
+      where: { id }, select: { sku: true, name: true, images: { select: { url: true } }, videos: { select: { url: true } }, variants: { select: { imageUrl: true } } },
+    });
+    const files = new Set([...p.images.map((i) => i.url), ...p.videos.map((v) => v.url), ...p.variants.map((v) => v.imageUrl).filter((u): u is string => !!u)]);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product.delete({ where: { id } });
+      await this.audit.log(me.id, 'product.delete', 'product', id, { sku: p.sku, name: p.name }, tx);
+    });
+    // Photo encore affichée dans une commande : conservée.
+    const kept = new Set((await this.prisma.orderItem.findMany({ where: { imageUrl: { in: [...files] } }, select: { imageUrl: true } })).map((o) => o.imageUrl));
+    for (const url of files) if (!kept.has(url)) await this.uploads.removeByUrl(url);
   }
 }

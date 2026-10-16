@@ -44,11 +44,12 @@ const optInt = (s: string) => (String(s).trim() === '' ? null : Number(s));
 
 type Ref = { id: string; name: string };
 type ProductImage = { id: string; url: string; alt: string | null; isPrimary: boolean };
+type ProductVideo = { id: string; url: string };
 type ApiCategory = { id: string; name: string; slug: string; description: string | null; imageUrl: string | null; position: number; isActive: boolean; _count: { products: number } };
 type ApiProduct = {
   id: string; name: string; sku: string; reference: string; description: string; priceCents: number; salePriceCents: number | null;
   stock: number; status: string; purchasable: boolean; brand: Ref; category: Ref; collection: Ref | null; shortDescription: string | null; color: string;
-  extraSpecs: { features?: string[]; specs?: [string, string][]; [k: string]: unknown } | null; warrantyMonths: number; soldCount: number; images: ProductImage[];
+  extraSpecs: { features?: string[]; specs?: [string, string][]; [k: string]: unknown } | null; warrantyMonths: number; soldCount: number; images: ProductImage[]; videos: ProductVideo[];
   options: { id: string; name: string; values: { id: string; label: string; colorHex: string | null }[] }[];
   variants: { id: string; sku: string; priceCents: number | null; salePriceCents: number | null; stock: number; isActive: boolean; imageUrl: string | null; values: { label: string; colorHex: string | null }[] }[];
 };
@@ -75,7 +76,7 @@ type Overview = { revenueCents: number; ordersCount: number; ordersToProcess: nu
 type AProduct = {
   id: string; name: string; sku: string; reference: string; description: string; collection: string; category: string;
   price: string; sale: string; stock: string; status: string; brand: string; kind: string; features: string; specs: string; extra: string;
-  color: string; warranty: string; sold: number; images: ProductImage[]; purchasable: boolean;
+  color: string; warranty: string; sold: number; images: ProductImage[]; videos: ProductVideo[]; purchasable: boolean;
   options: VOption[]; variants: VRow[];
 };
 /** Option en cours d'édition (Couleur, Bracelet…) ; `color` affiche des pastilles. */
@@ -111,7 +112,7 @@ const toProduct = (p: ApiProduct): AProduct => ({
   id: p.id, name: p.name, sku: p.sku, reference: p.reference, description: p.description, collection: p.collection?.name ?? '',
   category: p.category.name, price: euros(p.priceCents), sale: euros(p.salePriceCents), stock: String(p.stock), status: labelOf(PSTATUS, p.status),
   brand: p.brand.name, kind: p.shortDescription ?? '', color: p.color, ...specFields(p.extraSpecs),
-  warranty: String(p.warrantyMonths), sold: p.soldCount, images: p.images, purchasable: p.purchasable,
+  warranty: String(p.warrantyMonths), sold: p.soldCount, images: p.images, videos: p.videos ?? [], purchasable: p.purchasable,
   options: p.options.map((o) => ({
     name: o.name, color: o.values.some((v) => v.colorHex), values: o.values.map((v) => ({ label: v.label, hex: v.colorHex ?? '#111111' })),
   })),
@@ -536,6 +537,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   const [drawer, setDrawer] = useState<DrawerKind>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [images, setImages] = useState<AProduct['images']>([]);
+  const [videos, setVideos] = useState<AProduct['videos']>([]);
   const [opts, setOpts] = useState<VOption[]>([]);
   const [vars, setVars] = useState<VRow[]>([]);
   const [varsDirty, setVarsDirty] = useState(false);
@@ -608,6 +610,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   const applyProduct = (p: ApiProduct) => {
     setProducts((ps) => ps.map((x) => (x.id === p.id ? toProduct(p) : x)));
     setImages(p.images);
+    setVideos(p.videos ?? []);
   };
   const imageAction = (path: string, method: string, ok: string) =>
     run(async () => applyProduct((await api<{ data: ApiProduct }>(path, { method })).data), ok);
@@ -618,6 +621,22 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
       applyProduct((await api<{ data: ApiProduct }>(`/admin/products/${id}/images`, { method: 'POST', body: fd })).data);
     }
   }, files.length > 1 ? `${files.length} photos ajoutées` : 'Photo ajoutée');
+  const uploadProductVideos = (id: string, files: File[]) => run(async () => {
+    for (const f of files) {
+      if (f.size > 40 * 1024 * 1024) throw new ApiError(413, 'FILE_TOO_LARGE', `« ${f.name} » dépasse 40 Mo : compressez-la avant de l’envoyer`);
+      const fd = new FormData();
+      fd.append('file', f);
+      applyProduct((await api<{ data: ApiProduct }>(`/admin/products/${id}/videos`, { method: 'POST', body: fd })).data);
+    }
+  }, files.length > 1 ? `${files.length} vidéos ajoutées` : 'Vidéo ajoutée');
+  const deleteProduct = (p: AProduct) => {
+    if (!window.confirm(`Supprimer définitivement « ${p.name} » ?\n\nSes photos et vidéos seront effacées du serveur. Les commandes déjà passées restent dans l’historique.\nPour le retirer seulement de la boutique, utilisez plutôt « Archiver ».`)) return;
+    run(async () => {
+      await api(`/admin/products/${p.id}`, { method: 'DELETE' });
+      setProducts((ps) => ps.filter((x) => x.id !== p.id));
+      if (editId === p.id) setDrawer(null);
+    }, 'Produit supprimé');
+  };
 
   const [cats, setCats] = useState<ApiCategory[]>([]);
   const [catDraft, setCatDraft] = useState<Record<string, { name: string; description: string }>>({});
@@ -645,14 +664,14 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   const orderAction = (o: AOrder, path: string, body: unknown, ok: string, method = 'POST') =>
     run(async () => replaceOrder((await api<{ data: ApiOrder }>(path, { method, body })).data), `${o.number} · ${ok}`);
 
-  const openForm = (kind: DrawerKind, id: string | null, f: Record<string, string>, imgs: AProduct['images'] = [], o: VOption[] = [], v: VRow[] = []) => {
-    setDrawer(kind); setEditId(id); setForm(f); setImages(imgs); setErrors({}); setOpts(o); setVars(v); setVarsDirty(false);
+  const openForm = (kind: DrawerKind, id: string | null, f: Record<string, string>, imgs: AProduct['images'] = [], o: VOption[] = [], v: VRow[] = [], vids: AProduct['videos'] = []) => {
+    setDrawer(kind); setEditId(id); setForm(f); setImages(imgs); setVideos(vids); setErrors({}); setOpts(o); setVars(v); setVarsDirty(false);
   };
   const openProduct = (p?: AProduct) => {
     if (!p) return openForm('product', null, { name: '', sku: '', reference: '', description: '', price: '', sale: '', stock: '0', status: 'Brouillon', brand: refs.brands[0]?.name ?? '', collection: COLLS[0] ?? '', category: CATS[0] ?? '', kind: '', features: '', specs: '', extra: '{}', color: 'Blanc', warranty: '6' });
-    const { images: imgs, sold, id, options, variants, purchasable, ...rest } = p;
+    const { images: imgs, videos: vids, sold, id, options, variants, purchasable, ...rest } = p;
     void sold; void purchasable;
-    openForm('product', id, rest, imgs, options, variants);
+    openForm('product', id, rest, imgs, options, variants, vids);
   };
   const openCoupon = (c?: Coupon) => openForm('coupon', c?.id ?? null, c
     ? { code: c.code, type: c.type, value: c.value, min: c.min, max: c.max, start: c.start, end: c.end, active: c.active ? 'Actif' : 'Inactif' }
@@ -998,6 +1017,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                             const r = await api<{ data: ApiProduct }>(`/admin/products/${p.id}/status`, { method: 'PATCH', body: { status: p.status === 'Archivé' ? 'DRAFT' : 'ARCHIVED' } });
                             setProducts((ps) => ps.map((x) => (x.id === p.id ? toProduct(r.data) : x)));
                           }, p.status === 'Archivé' ? 'Produit restauré en brouillon' : 'Produit archivé')}>{p.status === 'Archivé' ? 'Restaurer' : 'Archiver'}</SmallBtn>
+                          <SmallBtn onClick={() => deleteProduct(p)}>Supprimer</SmallBtn>
                         </span>
                       </div>
                     );
@@ -1306,6 +1326,30 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                 </div>
               ) : <span style={{ fontSize: 13, color: '#6B6B66' }}>Enregistrez d’abord le produit, puis ajoutez ses photos.</span>}
               <span style={{ fontSize: 12, color: '#6B6B66' }}>JPG, PNG ou WebP, 5 Mo maximum, fond neutre. Cliquez sur une photo pour en faire la photo principale.</span>
+            </div>
+          )}
+          {drawer === 'product' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <span style={monoLabel}>Vidéos</span>
+              {editId ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 8 }}>
+                  {videos.map((v) => (
+                    <div key={v.id} style={{ ...thumb, position: 'relative', aspectRatio: '1', background: '#111', overflow: 'hidden' }}>
+                      <video src={`${v.url}#t=0.1`} muted playsInline preload="metadata" controls style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <button aria-label="Supprimer la vidéo" onClick={() => { if (window.confirm('Supprimer cette vidéo ?')) imageAction(`/admin/products/${editId}/videos/${v.id}`, 'DELETE', 'Vidéo supprimée'); }}
+                        style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', border: 0, background: '#fff', cursor: 'pointer', fontSize: 12 }}>×</button>
+                    </div>
+                  ))}
+                  {videos.length < 4 && (
+                    <label className="adm-small" style={{ aspectRatio: '1', border: '1px dashed #9A9A94', background: '#fff', cursor: busy ? 'wait' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 12, color: '#55554F' }}>
+                      <span style={{ fontSize: 20 }}>+</span>{busy ? 'Envoi…' : 'Ajouter'}
+                      <input type="file" accept="video/mp4,video/quicktime,video/webm" multiple disabled={busy} style={{ display: 'none' }}
+                        onChange={(e) => { const files = [...(e.target.files ?? [])]; e.target.value = ''; uploadProductVideos(editId, files); }} />
+                    </label>
+                  )}
+                </div>
+              ) : <span style={{ fontSize: 13, color: '#6B6B66' }}>Enregistrez d’abord le produit, puis ajoutez ses vidéos.</span>}
+              <span style={{ fontSize: 12, color: '#6B6B66' }}>MP4 conseillé (lisible sur tous les téléphones), MOV ou WebM, 4 vidéos par produit, affichées après les photos. Pour un chargement rapide : 15 à 30 secondes, 720p, moins de 10 Mo (40 Mo au maximum).</span>
             </div>
           )}
 

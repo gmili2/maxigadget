@@ -43,6 +43,7 @@ export interface Product {
   swatches: Swatch[];
   image?: string; // photo principale
   photos: string[]; // toutes les photos, la principale en premier
+  videos: string[]; // vidéos, affichées après les photos sur la fiche
 }
 
 export const CATS: Record<CategoryId, [string, string]> = {

@@ -102,8 +102,11 @@ export default function Product() {
   const canBuy = p.purchasable && (p.variants.length ? !!variant?.inStock : p.inStock);
   const stockText = !p.purchasable ? 'منتج للعرض فقط' : !p.variants.length ? p.stock : !variant ? 'هذا الاختيار غير متوفر' : !variant.inStock ? 'نفد هذا الاختيار' : variant.lowStock ? 'آخر القطع المتوفرة' : 'متوفر — يُرسَل خلال 24 ساعة';
   const photos = p.photos.length ? p.photos : p.image ? [p.image] : [];
+  // Galerie : les photos puis les vidéos ; `img` désigne un élément de cette suite.
+  const gallery = [...photos.map((src) => ({ src, video: false })), ...p.videos.map((src) => ({ src, video: true }))];
   const variantPhoto = variant?.imageUrl ? photos.indexOf(variant.imageUrl) : -1;
-  const shown = img >= 0 ? Math.min(img, photos.length - 1) : Math.max(0, variantPhoto);
+  const shown = img >= 0 ? Math.min(img, gallery.length - 1) : Math.max(0, variantPhoto);
+  const mainVideo = gallery[shown]?.video ? gallery[shown].src : null;
   const mainPhoto = variant?.imageUrl && img < 0 && variantPhoto < 0 ? variant.imageUrl : photos[shown];
   const ref = variant?.sku ?? p.sku;
   const buy = () => { if (canBuy) add(p.id, qty, variant?.id); };
@@ -125,6 +128,12 @@ export default function Product() {
         <Crumbs items={[['الرئيسية', '/'], ['المنتجات', shopPath('all')], [p.name]]} />
         <div style={{ display: 'grid', gridTemplateColumns: L.split, gap: L.pGap, marginTop: 24, alignItems: 'start' }}>
           <div data-reveal style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {mainVideo ? (
+              <div className="ph" style={{ aspectRatio: '4/5', borderRadius: 22, backgroundImage: 'none', background: '#111', overflow: 'hidden' }}>
+                <video key={mainVideo} src={mainVideo} controls autoPlay muted loop playsInline preload="metadata"
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#111' }} />
+              </div>
+            ) : (
             <div
               role="button" tabIndex={0} aria-label={zoom ? 'تصغير' : 'تكبير الصورة'}
               onClick={(e) => { setZxy(pos(e)); setZoom((z) => !z); }}
@@ -139,17 +148,27 @@ export default function Product() {
                   : <img src="/logo-mark.svg" alt="" style={{ width: '36%', opacity: 0.22 }} />
                 }
               </div>
-              {!photos.length && <span className="ph-caption">صورة · {p.name}{variant ? ' ' + variant.values.map((v) => v.label).join(' · ') : ''} — {photos.length ? `${shown + 1} / ${photos.length}` : VIEWS[Math.max(0, img)]}</span>}
+              {!photos.length && <span className="ph-caption">صورة · {p.name}{variant ? ' ' + variant.values.map((v) => v.label).join(' · ') : ''} — {photos.length ? `${shown + 1} / ${gallery.length}` : VIEWS[Math.max(0, img)]}</span>}
               <span style={{ position: 'absolute', insetInlineEnd: 14, top: 14, padding: '7px 12px', borderRadius: 999, background: 'rgba(255,255,255,.9)', fontSize: 11.5 }}>
                 {zoom ? 'تكبير × 2.2' : 'انقر للتكبير'}
               </span>
             </div>
-            {photos.length > 1 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(photos.length, 6)},minmax(0,1fr))`, gap: 10 }}>
-                {photos.slice(0, 6).map((src, i) => (
-                  <button key={src} className="ph" onClick={() => { setImg(i); setZoom(false); }} aria-label={`صورة ${i + 1}`} aria-pressed={i === shown}
-                    style={{ aspectRatio: '1', padding: 0, cursor: 'pointer', backgroundImage: 'none', background: '#ffffff', border: `1px solid ${i === shown ? 'var(--ink)' : 'transparent'}`, overflow: 'hidden', position: 'relative' }}>
-                    <img src={src} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            )}
+            {gallery.length > 1 ? (
+              // Toutes les vignettes, sur plusieurs lignes si besoin (6 par ligne).
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(gallery.length, 6)},minmax(0,1fr))`, gap: 10 }}>
+                {gallery.map(({ src, video }, i) => (
+                  <button key={src} className="ph" onClick={() => { setImg(i); setZoom(false); }} aria-label={video ? `فيديو ${i - photos.length + 1}` : `صورة ${i + 1}`} aria-pressed={i === shown}
+                    style={{ aspectRatio: '1', padding: 0, cursor: 'pointer', backgroundImage: 'none', background: video ? '#111' : '#ffffff', border: `1px solid ${i === shown ? 'var(--ink)' : 'transparent'}`, overflow: 'hidden', position: 'relative' }}>
+                    {video
+                      ? <>
+                          {/* #t=0.1 : première image de la vidéo comme vignette. */}
+                          <video src={`${src}#t=0.1`} muted playsInline preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <span aria-hidden style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ width: 0, height: 0, borderTop: '6px solid transparent', borderBottom: '6px solid transparent', borderLeft: '10px solid #111', marginLeft: 3 }} />
+                          </span>
+                        </>
+                      : <img src={src} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
                   </button>
                 ))}
               </div>

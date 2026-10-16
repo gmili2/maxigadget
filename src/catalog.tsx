@@ -10,7 +10,7 @@ export type ApiShopProduct = {
   slug: string; sku: string; name: string; shortDescription: string | null; description: string;
   priceCents: number; finalPriceCents: number; onSale: boolean; priceFromCents: number; hasPriceRange: boolean;
   inStock: boolean; lowStock: boolean; stock: number | null; isFeatured: boolean; purchasable: boolean;
-  brand: { name: string }; images: { url: string; alt: string | null }[];
+  brand: { name: string }; images: { url: string; alt: string | null }[]; videos?: string[];
   category: { slug: string; name: string }; collection: { name: string; slug: string } | null;
   color: string; warrantyMonths: number; ratingAvg: number; ratingCount: number;
   publishedAt: string | null; extraSpecs: { tags?: string[]; kind?: string; features?: string[]; specs?: [string, string][] } | null;
@@ -51,7 +51,7 @@ export function toShopProduct(p: ApiShopProduct): Product {
   // Prix affiché sur les cartes : la déclinaison la moins chère (avec son prix barré éventuel).
   const cheapest = variants.length ? variants.reduce((a, b) => (b.price < a.price ? b : a)) : null;
   return {
-    id: p.slug, sku: p.sku, name: p.name, brand: p.brand.name === HOUSE ? undefined : p.brand.name, image: media(p.images[0]?.url), photos: p.images.map((i) => media(i.url)!),
+    id: p.slug, sku: p.sku, name: p.name, brand: p.brand.name === HOUSE ? undefined : p.brand.name, image: media(p.images[0]?.url), photos: p.images.map((i) => media(i.url)!), videos: (p.videos ?? []).map((v) => media(v)!),
     col: p.collection?.name ?? '', kind: p.shortDescription ?? x.kind ?? p.category.name,
     cats: tagsOf(p),
     price: cheapest ? cheapest.price : dh(p.finalPriceCents),

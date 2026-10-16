@@ -334,6 +334,7 @@ model Product {
   collection Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
 
   images           ProductImage[]
+  videos           ProductVideo[]
   options          ProductOption[]
   variants         ProductVariant[]
   stockMovements   StockMovement[]
@@ -374,6 +375,21 @@ model ProductImage {
 
   @@index([productId, position])
   @@map("product_images")
+}
+
+/// Vidéos d'une montre (MP4, MOV ou WebM), affichées après les photos sur la fiche.
+model ProductVideo {
+  id         String   @id @default(uuid()) @db.Char(36)
+  productId  String   @db.Char(36)
+  storageKey String   @db.VarChar(255)
+  url        String   @db.VarChar(500)
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, position])
+  @@map("product_videos")
 }
 
 /// Option configurable d'un produit (Couleur, Bracelet, Taille…). Ordre d'affichage par `position`.
