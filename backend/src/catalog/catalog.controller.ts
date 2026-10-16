@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma.service';
 import { variantInclude, variantValues } from '../admin/variants';
 import { SiteAccess, SiteAccessGuard } from '../shop/site-access';
 import { PricingService } from './pricing.service';
+import { COLLECTION_VISIBLE, VISIBLE } from './visibility';
 
 const bool = () => Transform(({ value }) => value === true || value === 'true' || value === '1');
 const NEW_DAYS = 60;
@@ -50,9 +51,9 @@ export class CatalogController {
   @UseGuards(SiteAccessGuard)
   @Get('products')
   async products(@Query() q: ProductQuery) {
-    // Les produits d'une catégorie masquée n'apparaissent nulle part dans la boutique.
-    const where: Prisma.ProductWhereInput = { status: 'ACTIVE', category: { isActive: true } };
-    const and: Prisma.ProductWhereInput[] = [];
+    // Les produits d'une catégorie masquée ou d'une collection archivée n'apparaissent nulle part dans la boutique.
+    const where: Prisma.ProductWhereInput = { ...VISIBLE };
+    const and: Prisma.ProductWhereInput[] = [COLLECTION_VISIBLE];
     if (q.q) and.push({ OR: [
       { name: { contains: q.q } }, { description: { contains: q.q } },
       { sku: { contains: q.q } }, { collection: { name: { contains: q.q } } },
@@ -71,7 +72,7 @@ export class CatalogController {
     if (q.inStock) where.stock = { gt: 0 };
     if (q.featured) where.isFeatured = true;
     if (q.isNew) where.publishedAt = { gte: new Date(Date.now() - NEW_DAYS * 86_400_000) };
-    if (and.length) where.AND = and;
+    where.AND = and;
 
     const orderBy: Prisma.ProductOrderByWithRelationInput = {
       price_asc: { priceCents: 'asc' as const }, price_desc: { priceCents: 'desc' as const }, newest: { publishedAt: 'desc' as const },
@@ -96,7 +97,7 @@ export class CatalogController {
   @UseGuards(SiteAccessGuard)
   @Get('products/:slug')
   async product(@Param('slug') slug: string) {
-    const p = await this.prisma.product.findFirst({ where: { slug, status: 'ACTIVE', category: { isActive: true } }, include });
+    const p = await this.prisma.product.findFirst({ where: { slug, ...VISIBLE }, include });
     if (!p) throw new AppError(HttpStatus.NOT_FOUND, 'PRODUCT_NOT_FOUND', 'المنتج غير موجود');
     const reviews = await this.prisma.review.findMany({
       where: { productId: p.id, status: 'APPROVED' }, orderBy: { createdAt: 'desc' }, take: 20,

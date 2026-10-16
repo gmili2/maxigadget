@@ -9,6 +9,7 @@ import { Public } from '../common/decorators';
 import { PrismaService } from '../prisma.service';
 import { SiteAccess } from '../shop/site-access';
 import { PricingService } from './pricing.service';
+import { VISIBLE } from './visibility';
 
 /**
  * Référencement. Le site est une application React : sans aide, robots et aperçus de partage (WhatsApp,
@@ -113,7 +114,7 @@ export class SeoController {
     }
     const one = path.match(/^\/produit\/([a-z0-9-]+)$/);
     const p = one && await this.prisma.product.findFirst({
-      where: { slug: one[1], status: 'ACTIVE', category: { isActive: true } },
+      where: { slug: one[1], ...VISIBLE },
       include: { brand: { select: { name: true } }, category: { select: { name: true } }, images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }], select: { url: true } }, ...variantInclude },
     });
     if (!p) return send({ title: `الصفحة غير موجودة — ${SHOP_AR}`, description: PITCH, path, noindex: true, status: 404 });
@@ -168,7 +169,7 @@ export class SeoController {
   @Header('Cache-Control', 'public, max-age=3600')
   async sitemap() {
     const products = this.access.enabled ? [] : await this.prisma.product.findMany({
-      where: { status: 'ACTIVE', category: { isActive: true } }, orderBy: { publishedAt: 'desc' },
+      where: VISIBLE, orderBy: { publishedAt: 'desc' },
       select: { slug: true, name: true, updatedAt: true, images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }], take: 1, select: { url: true } } },
     });
     const url = (loc: string, extra = '') => `  <url><loc>${esc(this.origin + loc)}</loc>${extra}</url>`;

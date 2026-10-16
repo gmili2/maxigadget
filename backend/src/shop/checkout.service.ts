@@ -5,6 +5,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { syncProductStock, variantInclude, variantLabel } from '../admin/variants';
 import { AuthService } from '../auth/auth.service';
 import { PricingService } from '../catalog/pricing.service';
+import { VISIBLE } from '../catalog/visibility';
 import { AppError } from '../common/http';
 import { PrismaService } from '../prisma.service';
 import { emailForPhone } from './no-email';
@@ -119,7 +120,7 @@ export class CheckoutService {
     }
     const slugs = [...new Set([...wanted.values()].map((w) => w.slug))];
     const products = await db.product.findMany({
-      where: { slug: { in: slugs }, status: 'ACTIVE', category: { isActive: true } },
+      where: { slug: { in: slugs }, ...VISIBLE },
       include: { ...variantInclude, images: { where: { isPrimary: true }, take: 1 } },
     });
     if (lock && products.length) {
