@@ -3,6 +3,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -23,6 +24,8 @@ async function bootstrap() {
     if (!req.url.startsWith('/api/') && req.url !== '/api') req.url = '/api' + (req.url.startsWith('/') ? '' : '/') + req.url;
     next();
   });
+  // Réponses JSON compressées (le catalogue passe d'environ 120 Ko à 15 Ko par page).
+  app.use(compression());
   app.use(requestId, helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }), cookieParser());
   app.enableCors({ origin: env.FRONTEND_URL, credentials: true });
   // Images envoyées depuis l'admin (noms aléatoires, jamais réécrits : cache long).

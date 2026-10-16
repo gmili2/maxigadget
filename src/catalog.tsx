@@ -35,16 +35,23 @@ function tagsOf(p: ApiShopProduct): Tag[] {
   return [...t];
 }
 
+/**
+ * En ligne, les photos envoyées depuis l'admin sont servies directement par le serveur web via /media
+ * (lien vers le dossier uploads de l'API) : plus rapide que de passer par Node. En local, l'API les sert.
+ */
+export const media = (url: string | null | undefined) =>
+  url && import.meta.env.PROD && url.startsWith('/api/uploads/') ? '/media/' + url.slice('/api/uploads/'.length) : url ?? undefined;
+
 export function toShopProduct(p: ApiShopProduct): Product {
   const x = p.extraSpecs ?? {};
   const variants: Variant[] = p.variants.map((v) => ({
     id: v.id, sku: v.sku, values: v.values.map(swatch), price: dh(v.finalPriceCents), old: v.onSale ? dh(v.priceCents) : null,
-    inStock: v.inStock, lowStock: v.lowStock, imageUrl: v.imageUrl,
+    inStock: v.inStock, lowStock: v.lowStock, imageUrl: media(v.imageUrl) ?? null,
   }));
   // Prix affiché sur les cartes : la déclinaison la moins chère (avec son prix barré éventuel).
   const cheapest = variants.length ? variants.reduce((a, b) => (b.price < a.price ? b : a)) : null;
   return {
-    id: p.slug, sku: p.sku, name: p.name, brand: p.brand.name === HOUSE ? undefined : p.brand.name, image: p.images[0]?.url, photos: p.images.map((i) => i.url),
+    id: p.slug, sku: p.sku, name: p.name, brand: p.brand.name === HOUSE ? undefined : p.brand.name, image: media(p.images[0]?.url), photos: p.images.map((i) => media(i.url)!),
     col: p.collection?.name ?? '', kind: p.shortDescription ?? x.kind ?? p.category.name,
     cats: tagsOf(p),
     price: cheapest ? cheapest.price : dh(p.finalPriceCents),
@@ -88,15 +95,14 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async () => {
     try {
-      // Les pages de l'API sont limitées à 50 : on enchaîne jusqu'à la dernière.
-      const all: ApiShopProduct[] = [];
-      for (let page = 1; ; page++) {
-        const r = await api<{ data: ApiShopProduct[]; meta: { totalPages: number } }>(`/products?sort=popular&limit=50&page=${page}`);
-        all.push(...r.data);
-        if (page >= r.meta.totalPages) break;
-      }
-      setProducts(all.map(toShopProduct));
-      setCategories((await api<{ data: ShopCategory[] }>('/categories')).data);
+      // Les pages de l'API sont limitées à 50 : la première s'affiche dès son arrivée, les suivantes sont demandées en parallèle.
+      const page = (n: number) => api<{ data: ApiShopProduct[]; meta: { totalPages: number } }>(`/products?sort=popular&limit=50&page=${n}`);
+      const [first, cats] = await Promise.all([page(1), api<{ data: ShopCategory[] }>('/categories')]);
+      setCategories(cats.data);
+      setProducts(first.data.map(toShopProduct));
+      const rest = await Promise.all(Array.from({ length: first.meta.totalPages - 1 }, (_, i) => page(i + 2)));
+      // « ready » seulement une fois tout reçu : une fiche absente du premier lot n'est pas encore introuvable.
+      setProducts([first, ...rest].flatMap((r) => r.data).map(toShopProduct));
       setStatus('ready');
     } catch {
       setStatus('error');
@@ -106,21 +112,21 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     api<{ data: SiteInfo }>('/site').then((r) => setSite(r.data)).catch(() => setSite({ private: false, unlocked: true }));
   }, []);
-  // Le catalogue n'est chargé qu'une fois l'accès accordé (le serveur le refuse sinon).
-  const allowed = !!site && (!site.private || site.unlocked);
-  useEffect(() => { if (allowed) load(); }, [allowed, load]);
+  // Catalogue demandé sans attendre /site : boutique publique dans le cas courant.
+  // En accès privé, le serveur refuse ce premier essai et le catalogue est rechargé au déverrouillage.
+  useEffect(() => { load(); }, [load]);
 
   const value = useMemo<Catalog>(() => {
     const bySlug = new Map(products.map((p) => [p.id, p]));
     const imageFor = (tag: Tag) => {
-      const own = categories.find((c) => c.slug === CATEGORY_OF[tag])?.imageUrl;
+      const own = media(categories.find((c) => c.slug === CATEGORY_OF[tag])?.imageUrl);
       if (own) return own;
       return products.filter((p) => p.image && p.cats.includes(tag))
         .sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''))[0]?.image;
     };
     // /categories ne renvoie que les catégories visibles : une catégorie absente de la liste est masquée.
     const hidden = (id: CategoryId) => status === 'ready' && id !== 'all' && !!CATEGORY_OF[id] && !categories.some((c) => c.slug === CATEGORY_OF[id]);
-    return { site, unlocked: () => setSite((s) => (s ? { ...s, unlocked: true } : s)), products, categories, imageFor, hidden, status, find: (slug) => bySlug.get(slug), reload: () => { setStatus('loading'); load(); } };
+    return { site, unlocked: () => { setSite((s) => (s ? { ...s, unlocked: true } : s)); setStatus('loading'); load(); }, products, categories, imageFor, hidden, status, find: (slug) => bySlug.get(slug), reload: () => { setStatus('loading'); load(); } };
   }, [site, products, categories, status, load]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
