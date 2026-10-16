@@ -10,7 +10,7 @@ import { About, Account, Charte, Contact, Faq, Legal, NotFound } from './pages/C
 import Home from './pages/Home';
 import Product from './pages/Product';
 import Shop, { Collections } from './pages/Shop';
-import { initPixel, track } from './pixel';
+import { flushPixel, initPixel, track } from './pixel';
 import { PATHS } from './routes';
 import { HOME_TITLE, SHOP_PITCH, setMeta } from './seo';
 import { useStore } from './store';
@@ -72,10 +72,13 @@ export default function App() {
   }, [pathname, closeAll]);
   // Pixel Meta : une vue de page à chaque changement d'adresse (pas dans l'administration).
   useEffect(() => {
-    if (!site?.pixelId || pathname.startsWith(PATHS.admin)) return;
-    initPixel(site.pixelId);
-    track('PageView');
-  }, [pathname, site?.pixelId]);
+    if (!site || pathname.startsWith(PATHS.admin)) return;
+    if (site.pixelId) {
+      initPixel(site.pixelId);
+      track('PageView');
+    }
+    flushPixel();
+  }, [pathname, site]);
 
   if (pathname.startsWith(PATHS.admin)) return <Admin />;
   // Boutique en accès privé : rien n'est affiché avant la saisie du code.
