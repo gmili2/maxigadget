@@ -8,6 +8,7 @@ import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { CatalogController } from './catalog/catalog.controller';
 import { PricingService } from './catalog/pricing.service';
+import { SeoController } from './catalog/seo.controller';
 import { AuditModule } from './common/audit.service';
 import { UploadsModule } from './common/uploads.service';
 import { CheckoutController } from './shop/checkout.controller';
@@ -51,7 +52,7 @@ class HealthController {
     UploadsModule,
     AdminModule,
   ],
-  controllers: [HealthController, AuthController, CatalogController, CheckoutController, SiteController],
+  controllers: [HealthController, AuthController, CatalogController, CheckoutController, SiteController, SeoController],
   providers: [
     AuthService,
     PricingService,

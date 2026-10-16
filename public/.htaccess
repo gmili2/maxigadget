@@ -13,6 +13,10 @@ Options -Indexes
   RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
+  # Pages produits, sitemap et robots : complétées par l'API pour le référencement (titre, description, aperçus
+  # de partage, données Google). Voir backend/src/catalog/seo.controller.ts et l'aiguillage de main.ts.
+  RewriteRule ^(produits?(/.*)?|sitemap\.xml|robots\.txt)$ api/ [L]
+
   # /api est servi par l'application Node.js (cPanel → Setup Node.js App).
   RewriteRule ^api(/|$) - [L]
 

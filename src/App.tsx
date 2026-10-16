@@ -12,6 +12,7 @@ import Product from './pages/Product';
 import Shop, { Collections } from './pages/Shop';
 import { initPixel, track } from './pixel';
 import { PATHS } from './routes';
+import { HOME_TITLE, SHOP_PITCH, setMeta } from './seo';
 import { useStore } from './store';
 
 const TITLES: Record<string, string> = {
@@ -26,6 +27,19 @@ const TITLES: Record<string, string> = {
   [PATHS.account]: 'حسابي',
   [PATHS.charte]: 'الهوية البصرية',
 };
+/** Pages de la boutique : mêmes titres que l'API (backend/src/catalog/seo.controller.ts). */
+const SHOP_TITLES: Record<string, string> = {
+  '/produits': 'جميع المنتجات',
+  '/produits/soin-visage': 'العناية بالوجه',
+  '/produits/massage': 'التدليك',
+  '/produits/corps-minceur': 'الجسم والتنحيف',
+  '/produits/epilation-cheveux': 'إزالة الشعر والعناية بالشعر',
+  '/produits/cosmetiques': 'مستحضرات التجميل',
+  '/produits/packs': 'العروض المجمّعة',
+  '/produits/nouveautes': 'الجديد',
+};
+/** Pages personnelles : jamais dans les résultats de recherche. */
+const PRIVATE = [PATHS.cart, PATHS.checkout, PATHS.account, PATHS.charte];
 
 export default function App() {
   const L = useLayout();
@@ -43,10 +57,18 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0 });
     closeAll();
-    if (!pathname.startsWith('/produit/') && !pathname.startsWith(PATHS.admin)) {
-      const t = pathname === '/' ? '' : TITLES[pathname] ?? (pathname.startsWith('/produits') ? 'المنتجات' : '');
-      document.title = t ? `${t} — ماكسي غادجت` : 'ماكسي غادجت — تجميل، تدليك وعناية';
-    }
+    // Fiche produit : balises posées par la page elle-même (nom, prix, description).
+    if (pathname.startsWith('/produit/')) return;
+    if (pathname.startsWith(PATHS.admin)) { setMeta({ title: 'Administration — MaxiGadget', path: pathname, noindex: true }); return; }
+    if (pathname === '/') { setMeta({ title: HOME_TITLE, path: '/' }); return; }
+    const shop = SHOP_TITLES[pathname];
+    const t = shop ?? TITLES[pathname] ?? 'المنتجات';
+    setMeta({
+      title: `${t} — ماكسي غادجت`,
+      description: shop ? `${shop} في المغرب — ماكسي غادجت. ${SHOP_PITCH}` : undefined,
+      path: pathname,
+      noindex: PRIVATE.includes(pathname) || (!shop && !TITLES[pathname]),
+    });
   }, [pathname, closeAll]);
   // Pixel Meta : une vue de page à chaque changement d'adresse (pas dans l'administration).
   useEffect(() => {

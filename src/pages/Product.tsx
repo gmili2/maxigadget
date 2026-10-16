@@ -7,7 +7,8 @@ import { QtyStepper } from '../components/Shell';
 import { fmt, ratingF, stars, type Product as P, type Variant } from '../data';
 import { useLayout } from '../layout';
 import { track } from '../pixel';
-import { PATHS, shopPath } from '../routes';
+import { PATHS, productPath, shopPath } from '../routes';
+import { SHOP_PITCH, setMeta } from '../seo';
 import { useStore } from '../store';
 
 const VIEWS = ['المنتج', 'تفاصيل', 'أثناء الاستعمال', 'محتوى العلبة'];
@@ -45,7 +46,15 @@ export default function Product() {
   const [reviews, setReviews] = useState<{ id: string; list: Review[] }>({ id: '', list: [] });
 
   useEffect(() => { setImg(-1); setZoom(false); setQty(1); }, [id]);
-  useEffect(() => { if (p) document.title = `${p.name} — ماكسي غادجت`; }, [p]);
+  useEffect(() => {
+    if (!p) return;
+    const text = `${p.kind ? p.kind + '. ' : ''}${p.desc}`.replace(/\s+/g, ' ');
+    setMeta({
+      title: `${p.name} — ${fmt(p.price)} — ماكسي غادجت`,
+      description: `${p.name} بـ ${fmt(p.price)}${p.hasRange ? ' فما فوق' : ''}. ${text} ${SHOP_PITCH}`.slice(0, 300),
+      path: productPath(p.id),
+    });
+  }, [p]);
   useEffect(() => {
     if (p) track('ViewContent', { content_ids: [p.id], content_name: p.name, content_type: 'product', value: p.price, currency: 'MAD' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
