@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { UPLOADS_URL, UploadsService } from './common/uploads.service';
+import { trustProxy } from './common/client-ip';
 import { AllExceptionsFilter, requestId } from './common/http';
 import { validateEnv } from './config';
 import { pinPrismaEngine } from './prisma-engine';
@@ -17,7 +18,7 @@ async function bootstrap() {
   const env = validateEnv(process.env);
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
 
-  if (env.NODE_ENV === 'production') app.set('trust proxy', 1);
+  if (env.NODE_ENV === 'production') app.set('trust proxy', trustProxy);
   app.useBodyParser('json', { limit: '100kb' });
   // cPanel (Passenger) monte l'API sur /api et peut retirer ce préfixe : on le rétablit pour que les routes restent identiques.
   app.use((req: Request, _res: Response, next: NextFunction) => {
