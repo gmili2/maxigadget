@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, HttpCode, Post, Query, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
+import { MA_PHONE, MA_PHONE_MESSAGE, normalizeMaPhone } from './phone';
 import { PaymentMethod } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
@@ -25,7 +26,7 @@ class CustomerDto {
   // Formulaire court de la boutique : un seul champ « nom », pas d'e-mail.
   @IsOptional() @trim() @IsString() @MaxLength(80) lastName?: string;
   @IsOptional() @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() || undefined : value)) @IsEmail() @MaxLength(254) email?: string;
-  @trim() @Matches(/^\+?[0-9 ().-]{8,20}$/, { message: 'رقم الهاتف غير صحيح' }) phone: string;
+  @Transform(({ value }) => (typeof value === 'string' ? normalizeMaPhone(value) : value)) @Matches(MA_PHONE, { message: MA_PHONE_MESSAGE }) phone: string;
 }
 class AddressDto {
   @trim() @IsString() @MinLength(3) @MaxLength(160) line1: string;

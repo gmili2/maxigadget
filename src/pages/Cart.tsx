@@ -106,6 +106,14 @@ const SHIP_FIELDS: Field[] = [
 ];
 const CITIES = ['الدار البيضاء', 'الرباط', 'مراكش', 'فاس', 'طنجة', 'أكادير', 'مكناس', 'وجدة', 'القنيطرة', 'تطوان', 'سلا', 'المحمدية', 'الجديدة', 'آسفي', 'تمارة', 'الناظور', 'بني ملال', 'العيون'];
 const PAYMENT = 'CASH_ON_DELIVERY';
+/** Téléphone au format national « 06XXXXXXXX » (+212 / 00212 convertis). */
+const normalizeMaPhone = (raw: string) => {
+  let d = raw.trim().replace(/[\s.\-()]/g, '');
+  if (d.startsWith('+212')) d = '0' + d.slice(4);
+  else if (d.startsWith('00212')) d = '0' + d.slice(5);
+  else if (d.startsWith('212') && d.length === 12) d = '0' + d.slice(3);
+  return d;
+};
 const EMPTY: Address = { name: '', phone: '', line1: '', city: '' };
 const newKey = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
@@ -167,6 +175,9 @@ export function Checkout() {
   const placeOrder = async () => {
     const [firstName, ...rest] = addr.name.trim().split(/\s+/);
     const lastName = rest.join(' ');
+    // Même règle que le serveur (backend/src/shop/phone.ts) : mobile marocain uniquement.
+    const phone = normalizeMaPhone(addr.phone);
+    if (!/^0[678]\d{8}$/.test(phone)) { setError('رقم الهاتف يجب أن يكون مغربيًا: 06 أو 07 أو 08 متبوعًا بـ 8 أرقام (أو ‎+212 6…).'); return; }
     setBusy(true); setError('');
     try {
       const r = await api<{ data: Confirmation }>('/orders', {
@@ -174,7 +185,7 @@ export function Checkout() {
         body: {
           items, paymentMethod: PAYMENT, couponCode: coupon || undefined,
           // Un seul champ « nom » : le premier mot sert de prénom, le reste de nom de famille.
-          customer: { firstName, lastName: lastName || undefined, phone: addr.phone },
+          customer: { firstName, lastName: lastName || undefined, phone },
           address: { line1: addr.line1, city: addr.city, country: 'MA' },
         },
       });
@@ -213,7 +224,7 @@ export function Checkout() {
                     value={addr[f.name]} onChange={(e) => setAddr((a) => ({ ...a, [f.name]: e.target.value }))}
                     {...(f.name === 'name' && { minLength: 2, maxLength: 80 })}
                     {...(f.name === 'line1' && { minLength: 3, maxLength: 160 })}
-                    {...(f.name === 'phone' && { dir: 'ltr', inputMode: 'tel' as const, pattern: '\\+?[0-9 .\\-]{8,20}', title: 'مثال: 06 12 34 56 78' })} />
+                    {...(f.name === 'phone' && { dir: 'ltr', inputMode: 'tel' as const, pattern: '\\s*(0|\\+212|00212|212)\\s*[678]([\\s.\\-]*\\d){8}\\s*', title: 'رقم مغربي: 06 أو 07 أو 08 متبوع بـ 8 أرقام (أو ‎+212 6…)' })} />
                 </label>
               ))}
               <datalist id="gm-cities">{CITIES.map((c) => <option key={c} value={c} />)}</datalist>
