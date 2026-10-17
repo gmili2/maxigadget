@@ -57,7 +57,7 @@ type ApiProduct = {
 type ApiHistory = { from: OrderStatus | null; to: OrderStatus; note: string | null; createdAt: string; actor: string };
 type ApiOrder = {
   id: string; number: string; status: OrderStatus; paymentStatus: string; paymentMethod: 'CARD' | 'CASH_ON_DELIVERY' | 'BANK_TRANSFER';
-  subtotalCents: number; shippingCents: number; discountCents: number; totalCents: number; couponCode: string | null; placedAt: string;
+  subtotalCents: number; shippingCents: number; discountCents: number; totalCents: number; couponCode: string | null; discountLabel?: string | null; placedAt: string;
   shippingMethodName: string; shippingAddress: { firstName: string; lastName: string; line1: string; line2?: string; postalCode: string; city: string; country: string; phone: string };
   user: { email: string; firstName: string; lastName: string; phone: string | null };
   items: { id: string; productName: string; variantLabel: string | null; quantity: number; unitPriceCents: number; totalCents: number }[];
@@ -175,7 +175,7 @@ const toOrder = (o: ApiOrder): AOrder => {
   return {
     id: o.id, number: o.number, customer: `${o.user.firstName} ${o.user.lastName}`.trim(), email: realEmail(o.user.email) || a.phone || o.user.phone || '', date: frDateTime(o.placedAt), placedAt: o.placedAt, city: a.city ?? '',
     lines: o.items.map((i) => ({ id: i.id, name: i.productName, variant: i.variantLabel, qty: i.quantity, unit: i.unitPriceCents / 100 })),
-    subtotal: o.subtotalCents / 100, shipping: o.shippingCents / 100, discount: o.discountCents / 100, total: o.totalCents / 100, coupon: o.couponCode,
+    subtotal: o.subtotalCents / 100, shipping: o.shippingCents / 100, discount: o.discountCents / 100, total: o.totalCents / 100, coupon: o.discountLabel ?? (o.couponCode ? `Code ${o.couponCode}` : null),
     status: o.status, method: METHOD_LABEL[o.paymentMethod], pay: payLabel(o),
     paymentId: pay?.id ?? null, paymentRef: pay?.providerPaymentId ? 'Stripe · ' + pay.providerPaymentId : o.paymentMethod === 'BANK_TRANSFER' ? 'Virement · motif ' + o.number : 'Encaissement à la livraison',
     refundable: pay && (pay.status === 'PAID' || pay.status === 'PARTIALLY_REFUNDED') ? (pay.amountCents - pay.refundedCents) / 100 : 0,
@@ -527,7 +527,7 @@ function exportOrdersCsv(rows: AOrder[], label: string) {
     return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
   const head = ['Numéro', 'Date', 'Statut', 'Client', 'Téléphone', 'E-mail', 'Adresse', 'Ville', 'Articles', 'Nb articles',
-    'Sous-total (DH)', 'Remise (DH)', 'Livraison (DH)', 'Total (DH)', 'Code promo', 'Paiement', 'Statut du paiement', 'Transporteur', 'N° de suivi'];
+    'Sous-total (DH)', 'Remise (DH)', 'Livraison (DH)', 'Total (DH)', 'Remise appliquée', 'Paiement', 'Statut du paiement', 'Transporteur', 'N° de suivi'];
   const lines = rows.map((o) => [
     // ="06…" : Excel garde le téléphone en texte (sans perdre le 0 ni le +).
     o.number, o.date, osOf(o.status)[1], o.customer, o.phone ? `="${o.phone}"` : '', o.email.includes('@') ? o.email : '', o.address, o.city,
@@ -676,7 +676,15 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
     api<{ data: { day: string; revenueCents: number }[] }>('/admin/stats/sales-by-day?days=14').then((r) => setSales(r.data.map((d) => ({ day: d.day, revenue: d.revenueCents / 100 })))),
     apiAll<ApiUserRow>('/admin/users?role=CUSTOMER').then((d) => setClients(d.map(toClient))),
   ]), []);
+  const [tiers, setTiers] = useState<{ minQty: string; amount: string; active: boolean }[]>([]);
+  const toTiers = (d: { minQty: number; amountCents: number; isActive: boolean }[]) => d.map((t) => ({ minQty: String(t.minQty), amount: String(t.amountCents / 100), active: t.isActive }));
+  const saveTiers = () => run(async () => {
+    const body = tiers.filter((t) => t.minQty || t.amount).map((t) => ({ minQty: Number(t.minQty), amountCents: cents(t.amount), isActive: t.active }));
+    if (body.some((t) => !Number.isInteger(t.minQty) || t.minQty < 2 || !(t.amountCents > 0))) throw new ApiError(400, 'VALIDATION_ERROR', 'Chaque palier : au moins 2 montres et une remise en DH');
+    setTiers(toTiers((await api<{ data: { minQty: number; amountCents: number; isActive: boolean }[] }>('/admin/quantity-discounts', { method: 'PATCH', body: { tiers: body } })).data));
+  }, 'Remise par quantité enregistrée');
   const loadPromos = useCallback(() => Promise.all([
+    api<{ data: { minQty: number; amountCents: number; isActive: boolean }[] }>('/admin/quantity-discounts').then((r) => setTiers(toTiers(r.data))),
     api<{ data: ApiCoupon[] }>('/admin/coupons').then((r) => setCoupons(r.data.map(toCoupon))),
     api<{ data: ApiPromo[] }>('/admin/promotions').then((r) => setPromos(r.data.map(toPromo))),
   ]), []);
@@ -1218,6 +1226,31 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
 
         {view === 'promos' && (
           <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 20, background: '#fff', border: '1px solid #E6E6E1' }}>
+              <span style={{ fontWeight: 600, fontSize: 16 }}>Remise par quantité</span>
+              <span style={{ fontSize: 13, color: '#6B6B66' }}>Appliquée automatiquement selon le nombre de montres dans le panier (le palier le plus haut atteint). Non cumulable avec un code promo : le client obtient la réduction la plus avantageuse des deux.</span>
+              {tiers.map((t, i) => {
+                const set = (patch: Partial<typeof t>) => setTiers((xs) => xs.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+                const field: CSSProperties = { width: 90, height: 40, padding: '0 12px', border: '1px solid #D9D9D4', borderRadius: 999, background: '#fff', fontSize: 14 };
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 14 }}>
+                    <span>Dès</span>
+                    <input className="adm-input" type="number" min={2} value={t.minQty} aria-label="Nombre de montres" onChange={(e) => set({ minQty: e.target.value })} style={field} />
+                    <span>montres :</span>
+                    <span>−</span>
+                    <input className="adm-input" type="number" min={1} value={t.amount} aria-label="Remise en DH" onChange={(e) => set({ amount: e.target.value })} style={field} />
+                    <span>DH sur le panier</span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}><input type="checkbox" checked={t.active} onChange={(e) => set({ active: e.target.checked })} />Actif</label>
+                    <SmallBtn onClick={() => setTiers((xs) => xs.filter((_, k) => k !== i))}>Retirer</SmallBtn>
+                  </div>
+                );
+              })}
+              {!tiers.length && <span style={{ fontSize: 13, color: '#6B6B66' }}>Aucun palier : pas de remise par quantité.</span>}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <OutlineBtn onClick={() => setTiers((xs) => [...xs, { minQty: String(Math.max(1, ...xs.map((x) => Number(x.minQty) || 0)) + 1), amount: '', active: true }])}>+ Palier</OutlineBtn>
+                <SmallBtn dark onClick={saveTiers}>Enregistrer</SmallBtn>
+              </div>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 600, fontSize: 16 }}>Codes promo</span>
               <OutlineBtn onClick={() => openCoupon()}>+ Coupon</OutlineBtn>

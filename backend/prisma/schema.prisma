@@ -379,6 +379,19 @@ model ProductImage {
   @@map("product_images")
 }
 
+/// Remise par quantité : à partir de `minQty` montres dans le panier, `amountCents` de réduction (le palier le plus haut atteint).
+/// Non cumulable avec un code promo : la réduction la plus avantageuse pour le client est appliquée.
+model QuantityDiscount {
+  id          String   @id @default(uuid()) @db.Char(36)
+  minQty      Int      @unique
+  amountCents Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("quantity_discounts")
+}
+
 /// Vidéos d'une montre (MP4, MOV ou WebM), affichées après les photos sur la fiche.
 model ProductVideo {
   id         String   @id @default(uuid()) @db.Char(36)
@@ -565,6 +578,8 @@ model Order {
 
   couponId   String? @db.Char(36)
   couponCode String? @db.VarChar(40) // snapshot
+  /// Libellé de la remise appliquée (« Code BIENVENUE », « Remise 2 montres ») : snapshot affiché dans l'admin.
+  discountLabel String? @db.VarChar(100)
 
   // Snapshots : l'adresse de la commande ne change pas si le client modifie son carnet.
   shippingAddress Json

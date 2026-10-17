@@ -111,6 +111,13 @@ export class CatalogController {
     };
   }
 
+  /** Paliers de remise par quantité, affichés sur les fiches et dans le panier (calcul réel : checkout.service). */
+  @Get('quantity-discounts')
+  async quantityDiscounts() {
+    const data = await this.prisma.quantityDiscount.findMany({ where: { isActive: true }, orderBy: { minQty: 'asc' }, select: { minQty: true, amountCents: true } });
+    return { data };
+  }
+
   @Get('categories')
   async categories() {
     const data = await this.prisma.category.findMany({ where: { isActive: true }, orderBy: { position: 'asc' }, select: { id: true, name: true, slug: true, description: true, imageUrl: true, parentId: true } });

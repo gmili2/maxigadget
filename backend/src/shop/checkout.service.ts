@@ -72,7 +72,7 @@ export class CheckoutService {
         data: {
           number, userId: user.id, status: 'PENDING', paymentStatus: 'PENDING', paymentMethod: dto.paymentMethod,
           subtotalCents: r.subtotal, shippingCents: r.shipping, discountCents: r.discount, totalCents: r.total,
-          taxCents: Math.round(r.total - r.total / 1.2), couponId: r.coupon?.id, couponCode: r.coupon?.code,
+          taxCents: Math.round(r.total - r.total / 1.2), couponId: r.coupon?.id, couponCode: r.coupon?.code, discountLabel: r.discountLabel,
           shippingAddress: address, billingAddress: address, shippingMethodId: r.method.id, shippingMethodName: r.method.name,
           customerNote: dto.note || null, idempotencyKey: idempotencyKey ?? null,
           items: {
@@ -202,6 +202,20 @@ export class CheckoutService {
       coupon = { id: c.id, code: c.code };
     }
 
+    // Remise par quantité (palier le plus haut atteint), non cumulable avec le code : la plus avantageuse l'emporte.
+    const count = lines.reduce((n, l) => n + l.quantity, 0);
+    const tiers = await db.quantityDiscount.findMany({ where: { isActive: true }, orderBy: { minQty: 'asc' } });
+    const tier = [...tiers].reverse().find((t) => t.minQty <= count) ?? null;
+    const nextTier = tiers.find((t) => t.minQty > count) ?? null;
+    const quantityDiscount = tier ? Math.min(tier.amountCents, subtotal) : 0;
+    let couponSkipped: string | null = null;
+    if (quantityDiscount > discount) {
+      couponSkipped = coupon?.code ?? null;
+      coupon = null;
+      discount = quantityDiscount;
+    }
+    const discountLabel = coupon ? `Code ${coupon.code}` : quantityDiscount && discount === quantityDiscount ? `خصم ${tier!.minQty} منتجات` : null;
+
     // Livraison.
     const method = await db.shippingMethod.findFirst({
       where: { ...(dto.shippingMethodId && { id: dto.shippingMethodId }), isActive: true, zone: { isActive: true, countries: { path: '$', array_contains: [dto.country] } } },
@@ -214,7 +228,7 @@ export class CheckoutService {
     const free = method.freeAboveCents != null && subtotal - discount >= method.freeAboveCents;
     const shipping = (free ? 0 : method.priceCents) + (dto.paymentMethod === PaymentMethod.CASH_ON_DELIVERY ? method.codFeeCents : 0);
 
-    return { lines, subtotal, discount, shipping, total: subtotal - discount + shipping, coupon, method };
+    return { lines, subtotal, discount, discountLabel, couponSkipped, nextTier, count, shipping, total: subtotal - discount + shipping, coupon, method };
   }
 
   private summary(r: Awaited<ReturnType<CheckoutService['compute']>>) {
@@ -222,6 +236,11 @@ export class CheckoutService {
       lines: r.lines.map(({ available: _a, productId: _p, unlimited: _u, ...l }) => l),
       subtotalCents: r.subtotal, discountCents: r.discount, shippingCents: r.shipping, totalCents: r.total,
       couponCode: r.coupon?.code ?? null, shippingMethod: { id: r.method.id, name: r.method.name },
+      discountLabel: r.discountLabel,
+      // Code saisi mais non appliqué : la remise par quantité est plus avantageuse.
+      couponSkipped: r.couponSkipped,
+      // Prochain palier : « Ajoutez 1 montre et économisez 60 DH ».
+      nextTier: r.nextTier && { missing: r.nextTier.minQty - r.count, amountCents: r.nextTier.amountCents },
     };
   }
 

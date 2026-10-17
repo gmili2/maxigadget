@@ -64,6 +64,8 @@ export function toShopProduct(p: ApiShopProduct): Product {
   };
 }
 
+/** Remise par quantité : `amount` DH dès `minQty` montres dans le panier. */
+export type QtyTier = { minQty: number; amount: number };
 export type ShopCategory = { slug: string; name: string; description: string | null; imageUrl: string | null };
 /** Catégorie en base correspondant à une carte de collection du site (« Nouveautés » n'en a pas). */
 export const CATEGORY_OF: Partial<Record<Tag, string>> = Object.fromEntries(Object.entries(CATEGORY_TAG).map(([slug, tag]) => [tag, slug]));
@@ -77,6 +79,7 @@ type Catalog = {
   unlocked: () => void;
   products: Product[];
   categories: ShopCategory[];
+  qtyTiers: QtyTier[];
   /** Image d'une carte de collection : celle de la catégorie, sinon la photo du produit le plus récent concerné. */
   imageFor: (tag: Tag) => string | undefined;
   /** Carte ou filtre lié à une catégorie masquée dans l'administration. */
@@ -90,6 +93,7 @@ const Ctx = createContext<Catalog | null>(null);
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ShopCategory[]>([]);
+  const [qtyTiers, setQtyTiers] = useState<QtyTier[]>([]);
   const [status, setStatus] = useState<Catalog['status']>('loading');
   const [site, setSite] = useState<SiteInfo | null>(null);
 
@@ -99,6 +103,10 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       const page = (n: number) => api<{ data: ApiShopProduct[]; meta: { totalPages: number } }>(`/products?sort=popular&limit=50&page=${n}`);
       const [first, cats] = await Promise.all([page(1), api<{ data: ShopCategory[] }>('/categories')]);
       setCategories(cats.data);
+      // Paliers de remise par quantité : affichage seulement (le serveur recalcule à la commande).
+      api<{ data: { minQty: number; amountCents: number }[] }>('/quantity-discounts')
+        .then((r) => setQtyTiers(r.data.map((t) => ({ minQty: t.minQty, amount: t.amountCents / 100 }))))
+        .catch(() => setQtyTiers([]));
       setProducts(first.data.map(toShopProduct));
       const rest = await Promise.all(Array.from({ length: first.meta.totalPages - 1 }, (_, i) => page(i + 2)));
       // « ready » seulement une fois tout reçu : une fiche absente du premier lot n'est pas encore introuvable.
@@ -129,8 +137,8 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     const hidden = (id: CategoryId) => status === 'ready' && id !== 'all' && (
       (!!CATEGORY_OF[id] && !categories.some((c) => c.slug === CATEGORY_OF[id])) || !products.some((p) => p.cats.includes(id as Tag))
     );
-    return { site, unlocked: () => { setSite((s) => (s ? { ...s, unlocked: true } : s)); setStatus('loading'); load(); }, products, categories, imageFor, hidden, status, find: (slug) => bySlug.get(slug), reload: () => { setStatus('loading'); load(); } };
-  }, [site, products, categories, status, load]);
+    return { site, unlocked: () => { setSite((s) => (s ? { ...s, unlocked: true } : s)); setStatus('loading'); load(); }, products, categories, qtyTiers, imageFor, hidden, status, find: (slug) => bySlug.get(slug), reload: () => { setStatus('loading'); load(); } };
+  }, [site, products, categories, qtyTiers, status, load]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

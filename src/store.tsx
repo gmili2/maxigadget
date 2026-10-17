@@ -17,6 +17,10 @@ interface Store {
   favs: string[];
   count: number;
   subtotal: number;
+  /** Remise par quantité estimée (DH) et son libellé ; prochain palier à atteindre. */
+  qtyDiscount: number;
+  qtyLabel: string | null;
+  nextTier: { missing: number; amount: number } | null;
   add: (id: string, qty?: number, variantId?: string) => void;
   setQty: (key: string, delta: number) => void;
   remove: (key: string) => void;
@@ -97,8 +101,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
     const count = items.reduce((a, l) => a + l.qty, 0);
     const subtotal = items.reduce((a, l) => a + l.unit * l.qty, 0);
+    const tier = [...catalog.qtyTiers].reverse().find((t) => t.minQty <= count);
+    const next = catalog.qtyTiers.find((t) => t.minQty > count);
+    const qtyDiscount = tier ? Math.min(tier.amount, subtotal) : 0;
     return {
       cart, items, favs, count, subtotal, drawer, menu, search,
+      qtyDiscount, qtyLabel: tier ? `خصم ${tier.minQty} منتجات` : null, nextTier: count && next ? { missing: next.minQty - count, amount: next.amount } : null,
       add: (id, qty = 1, variantId) => {
         const key = lineKey(id, variantId);
         const p = catalog.find(id);

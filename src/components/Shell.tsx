@@ -237,10 +237,12 @@ export function Overlays() {
           })}
         </div>
         <div style={{ padding: '20px 24px 24px', borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 12, background: '#fff' }}>
+          {s.qtyDiscount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}><span>{s.qtyLabel}</span><span>−{fmt(s.qtyDiscount)}</span></div>}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span style={{ fontSize: 14 }}>المجموع · التوصيل مجاني</span>
-            <span style={{ fontStretch: '110%', fontSize: 20, fontWeight: 500 }}>{fmt(s.subtotal)}</span>
+            <span style={{ fontStretch: '110%', fontSize: 20, fontWeight: 500 }}>{fmt(s.subtotal - s.qtyDiscount)}</span>
           </div>
+          {s.nextTier && <span style={{ fontSize: 13, padding: '10px 12px', background: '#F2F2EF', borderRadius: 10, lineHeight: 1.5 }}>أضف {s.nextTier.missing} {s.nextTier.missing > 1 ? 'منتجات' : 'منتجًا'} ووفّر <strong>{fmt(s.nextTier.amount)}</strong> على طلبك.</span>}
           <button className="btn btn-cta" disabled={s.count === 0} onClick={() => go(PATHS.checkout)} style={{ opacity: s.count === 0 ? 0.4 : 1 }}>اطلب الآن</button>
           <button className="btn btn-outline" style={{ height: 50 }} onClick={() => go(PATHS.cart)}>عرض السلة</button>
         </div>

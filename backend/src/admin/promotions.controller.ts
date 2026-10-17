@@ -10,6 +10,15 @@ import { CurrentUser, Roles, type AuthUser } from '../common/decorators';
 import { AppError } from '../common/http';
 import { PrismaService } from '../prisma.service';
 
+class QuantityTierDto {
+  @IsInt() @Min(2) @Max(50) minQty: number;
+  @IsInt() @Min(100) @Max(10_000_000) amountCents: number;
+  @IsOptional() @IsBoolean() isActive?: boolean;
+}
+class QuantityTiersDto {
+  @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => QuantityTierDto) tiers: QuantityTierDto[];
+}
+
 class CouponDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase().replace(/\s/g, '') : value))
   @Matches(/^[A-Z0-9_-]{3,40}$/, { message: 'Code : 3 à 40 caractères, lettres, chiffres, - ou _' }) code: string;
@@ -70,6 +79,31 @@ const promoInclude = {
 @Controller('admin')
 export class AdminPromotionsController {
   constructor(private prisma: PrismaService, private audit: AuditService) {}
+
+  /* ---------- remise par quantité ---------- */
+
+  @Get('quantity-discounts')
+  async quantityDiscounts() {
+    return { data: await this.prisma.quantityDiscount.findMany({ orderBy: { minQty: 'asc' } }) };
+  }
+
+  /** Remplace tous les paliers (liste complète envoyée par l'admin). */
+  @Patch('quantity-discounts')
+  async setQuantityDiscounts(@Body() dto: QuantityTiersDto, @CurrentUser() me: AuthUser) {
+    const qtys = dto.tiers.map((t) => t.minQty);
+    if (new Set(qtys).size !== qtys.length) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Deux paliers ont le même nombre de montres');
+    const sorted = [...dto.tiers].sort((a, b) => a.minQty - b.minQty);
+    if (sorted.some((t, i) => i > 0 && t.amountCents <= sorted[i - 1].amountCents)) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Chaque palier doit offrir une remise plus grande que le précédent');
+    }
+    const data = await this.prisma.$transaction(async (tx) => {
+      await tx.quantityDiscount.deleteMany({});
+      for (const t of sorted) await tx.quantityDiscount.create({ data: { minQty: t.minQty, amountCents: t.amountCents, isActive: t.isActive ?? true } });
+      await this.audit.log(me.id, 'quantity_discount.update', 'quantity_discount', 'all', dto, tx);
+      return tx.quantityDiscount.findMany({ orderBy: { minQty: 'asc' } });
+    });
+    return { data };
+  }
 
   /* ---------- coupons ---------- */
 
