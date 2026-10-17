@@ -135,7 +135,9 @@ export default function Product() {
     if (!offers.length) return add(p.id, qty, variant?.id);
     const counts = new Map<string | undefined, number>();
     for (const v of unitVariants(pack)) counts.set(v?.id, (counts.get(v?.id) ?? 0) + 1);
-    for (const [vid, n] of counts) add(p.id, n, vid);
+    for (const [vid, n] of counts) add(p.id, n, vid, true);
+    // Pixel Meta : un seul ajout au panier pour le lot, à son prix réel (remise comprise).
+    track('AddToCart', { content_ids: [p.id], content_name: p.name, content_type: 'product', num_items: pack, value: packTotal, currency: 'MAD' });
   };
   /** Achat direct (publicités) : le panier reçoit exactement l'offre choisie pour ce produit, puis le formulaire de commande. */
   const buyNow = () => {

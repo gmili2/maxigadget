@@ -21,7 +21,8 @@ interface Store {
   qtyDiscount: number;
   qtyLabel: string | null;
   nextTier: { missing: number; amount: number; productName: string | null } | null;
-  add: (id: string, qty?: number, variantId?: string) => void;
+  /** `silent` : pas d'événement AddToCart (un lot de plusieurs coloris envoie un seul événement, au prix du lot). */
+  add: (id: string, qty?: number, variantId?: string, silent?: boolean) => void;
   setQty: (key: string, delta: number) => void;
   remove: (key: string) => void;
   clear: () => void;
@@ -129,11 +130,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return {
       cart, items, favs, count, subtotal, drawer, menu, search,
       qtyDiscount: qty.amount, qtyLabel: qty.label, nextTier: qty.next,
-      add: (id, qty = 1, variantId) => {
+      add: (id, qty = 1, variantId, silent = false) => {
         const key = lineKey(id, variantId);
         const p = catalog.find(id);
         const unit = (variantId && p?.variants.find((v) => v.id === variantId)?.price) || p?.price;
-        if (p) track('AddToCart', { content_ids: [id], content_name: p.name, content_type: 'product', value: (unit ?? 0) * qty, currency: 'MAD' });
+        if (p && !silent) track('AddToCart', { content_ids: [id], content_name: p.name, content_type: 'product', value: (unit ?? 0) * qty, currency: 'MAD' });
         setCart((c) => {
           const i = c.findIndex((l) => keyOf(l) === key);
           if (i < 0) return [...c, { id, qty, ...(variantId && { variantId }) }];

@@ -127,7 +127,7 @@ export function Checkout() {
   // Pixel Meta : début de commande, une fois le panier chargé.
   const started = s.items.length > 0;
   useEffect(() => {
-    if (started) track('InitiateCheckout', { content_ids: s.items.map((l) => l.product.id), num_items: s.count, value: s.subtotal, currency: 'MAD' });
+    if (started) track('InitiateCheckout', { content_ids: s.items.map((l) => l.product.id), num_items: s.count, value: s.subtotal - s.qtyDiscount, currency: 'MAD' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started]);
 
