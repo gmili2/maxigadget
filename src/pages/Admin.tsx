@@ -234,6 +234,52 @@ function Chip({ active, onClick, children, h = 40 }: { active: boolean; onClick:
     </button>
   );
 }
+/**
+ * Bouton « Actions ▾ » ouvrant un menu. Menu en position fixe : il n'est pas coupé par le tableau
+ * (défilement horizontal) ; il se ferme au clic extérieur, avec Échap ou au défilement.
+ */
+function ActionMenu({ items }: { items: { label: string; onClick: () => void; danger?: boolean }[] }) {
+  const btn = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number; up: boolean } | null>(null);
+  useEffect(() => {
+    if (!pos) return;
+    const close = (e: Event) => { if (e.type !== 'keydown' || (e as KeyboardEvent).key === 'Escape') setPos(null); };
+    const outside = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('[data-action-menu]')) setPos(null); };
+    document.addEventListener('mousedown', outside);
+    document.addEventListener('keydown', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', outside); document.removeEventListener('keydown', close);
+      window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close);
+    };
+  }, [pos]);
+  const toggle = () => {
+    if (pos) return setPos(null);
+    const r = btn.current!.getBoundingClientRect();
+    const up = window.innerHeight - r.bottom < 200; // près du bas de l'écran : le menu s'ouvre vers le haut
+    setPos({ top: up ? r.top - 6 : r.bottom + 6, right: window.innerWidth - r.right, up });
+  };
+  return (
+    <span data-action-menu style={{ display: 'inline-flex' }}>
+      <button ref={btn} className="adm-small" onClick={toggle} aria-haspopup="menu" aria-expanded={!!pos}
+        style={{ height: 34, padding: '0 14px', borderRadius: 999, border: '1px solid #D9D9D4', background: pos ? '#F2F2EF' : '#fff', color: '#111', cursor: 'pointer', fontSize: 12.5, whiteSpace: 'nowrap' }}>
+        Actions ▾
+      </button>
+      {pos && (
+        <span role="menu" style={{ position: 'fixed', zIndex: 60, right: pos.right, top: pos.up ? undefined : pos.top, bottom: pos.up ? window.innerHeight - pos.top : undefined, minWidth: 170, padding: 6, background: '#fff', border: '1px solid #E6E6E1', borderRadius: 12, boxShadow: '0 10px 30px rgba(17,17,17,.12)', display: 'flex', flexDirection: 'column' }}>
+          {items.map((it) => (
+            <button key={it.label} role="menuitem" className="adm-row" onClick={() => { setPos(null); it.onClick(); }}
+              style={{ textAlign: 'left', padding: '10px 12px', border: 0, borderRadius: 8, background: 'none', cursor: 'pointer', fontSize: 13.5, color: it.danger ? '#B42318' : '#111' }}>
+              {it.label}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function SmallBtn({ onClick, children, dark }: { onClick: () => void; children: ReactNode; dark?: boolean }) {
   return (
     <button className={dark ? undefined : 'adm-small'} onClick={onClick} style={{ height: 34, padding: '0 14px', borderRadius: 999, border: dark ? 0 : '1px solid #D9D9D4', background: dark ? 'var(--ink)' : '#fff', color: dark ? '#fff' : 'var(--ink)', cursor: 'pointer', fontSize: 12.5, whiteSpace: 'nowrap' }}>
@@ -1065,14 +1111,19 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                           {!p.purchasable && <span style={{ fontSize: 11.5, color: '#6B6B66' }} title="Non disponible à la vente">Vitrine</span>}
                           {archivedColl(p.collection) && <span style={{ fontSize: 11.5, color: '#6B6B66' }} title="Collection archivée : le produit n’apparaît pas dans la boutique">Collection archivée</span>}
                         </span>
-                        <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <SmallBtn onClick={() => openProduct(p)}>Modifier</SmallBtn>
-                          <SmallBtn onClick={() => run(async () => {
-                            const r = await api<{ data: ApiProduct }>(`/admin/products/${p.id}/status`, { method: 'PATCH', body: { status: p.status === 'Archivé' ? 'DRAFT' : 'ARCHIVED' } });
-                            setProducts((ps) => ps.map((x) => (x.id === p.id ? toProduct(r.data) : x)));
-                          }, p.status === 'Archivé' ? 'Produit restauré en brouillon' : 'Produit archivé')}>{p.status === 'Archivé' ? 'Restaurer' : 'Archiver'}</SmallBtn>
-                          <SmallBtn onClick={() => duplicateProduct(p)}>Dupliquer</SmallBtn>
-                          <SmallBtn onClick={() => deleteProduct(p)}>Supprimer</SmallBtn>
+                        <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <ActionMenu items={[
+                            { label: 'Modifier', onClick: () => openProduct(p) },
+                            { label: 'Dupliquer', onClick: () => duplicateProduct(p) },
+                            {
+                              label: p.status === 'Archivé' ? 'Restaurer' : 'Archiver',
+                              onClick: () => run(async () => {
+                                const r = await api<{ data: ApiProduct }>(`/admin/products/${p.id}/status`, { method: 'PATCH', body: { status: p.status === 'Archivé' ? 'DRAFT' : 'ARCHIVED' } });
+                                setProducts((ps) => ps.map((x) => (x.id === p.id ? toProduct(r.data) : x)));
+                              }, p.status === 'Archivé' ? 'Produit restauré en brouillon' : 'Produit archivé'),
+                            },
+                            { label: 'Supprimer', onClick: () => deleteProduct(p), danger: true },
+                          ]} />
                         </span>
                       </div>
                     );
