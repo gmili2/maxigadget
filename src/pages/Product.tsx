@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useCatalog } from '../catalog';
 import { Crumbs, ProductGrid } from '../components/Catalog';
@@ -10,7 +10,7 @@ import { useLayout } from '../layout';
 import { track } from '../pixel';
 import { PATHS, productPath, shopPath } from '../routes';
 import { SHOP_PITCH, setMeta } from '../seo';
-import { useStore } from '../store';
+import { lineKey, useStore } from '../store';
 
 const VIEWS = ['المنتج', 'تفاصيل', 'أثناء الاستعمال', 'محتوى العلبة'];
 const reassure = (warranty: number) => [
@@ -36,17 +36,22 @@ export default function Product() {
   const { id = '' } = useParams();
   const catalog = useCatalog();
   const p = catalog.find(id);
-  const { add, cart } = useStore();
+  const { add, cart, remove } = useStore();
   // Photo affichée : index choisi à la main, ou -1 = suivre la photo de la couleur sélectionnée.
   const [img, setImg] = useState(-1);
   const [zoom, setZoom] = useState(false);
   const [zxy, setZxy] = useState({ x: 50, y: 50 });
   const [qty, setQty] = useState(1);
+  // Offre choisie (1, 2, 3 produits…) et variante des produits 2, 3… (le produit 1 suit la sélection principale).
+  // ?offre=2 dans le lien (publicités) : l'offre de 2 produits est présélectionnée.
+  const [params] = useSearchParams();
+  const [packWanted, setPack] = useState(() => Number(params.get('offre')) || 1);
+  const [extra, setExtra] = useState<string[]>([]);
   // Choix d'options, mémorisé par produit : changer de fiche repart des valeurs par défaut.
   const [choice, setChoice] = useState<{ id: string; sel: Record<string, string> }>({ id: '', sel: {} });
   const [reviews, setReviews] = useState<{ id: string; list: Review[] }>({ id: '', list: [] });
 
-  useEffect(() => { setImg(-1); setZoom(false); setQty(1); }, [id]);
+  useEffect(() => { setImg(-1); setZoom(false); setQty(1); setPack(Number(params.get('offre')) || 1); setExtra([]); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!p) return;
     const text = `${p.kind ? p.kind + '. ' : ''}${p.desc}`.replace(/\s+/g, ' ');
@@ -110,11 +115,33 @@ export default function Product() {
   const mainVideo = gallery[shown]?.video ? gallery[shown].src : null;
   const mainPhoto = variant?.imageUrl && img < 0 && variantPhoto < 0 ? variant.imageUrl : photos[shown];
   const ref = variant?.sku ?? p.sku;
-  const buy = () => { if (canBuy) add(p.id, qty, variant?.id); };
-  /** Achat direct (publicités) : la montre va au panier, sans doublon si elle y est déjà, puis au formulaire de commande. */
+  const buy = () => { if (canBuy) addPack(); };
+  /* ---------- offres par quantité (« 2 pour 229 DH ») ---------- */
+  // Paliers de ce produit, sinon paliers généraux (même règle que le serveur, produit seul dans le panier).
+  const tiers = p.qtyTiers.length ? p.qtyTiers : catalog.qtyTiers;
+  const offers = p.purchasable && tiers.length ? [...new Set([1, ...tiers.map((t) => t.minQty)])].sort((a, b) => a - b).slice(0, 5) : [];
+  const pack = offers.includes(packWanted) ? packWanted : 1;
+  const inStockVariants = p.variants.filter((v) => v.inStock);
+  const unitVariants = (n: number) => Array.from({ length: n }, (_, i) => (i === 0 ? variant : p.variants.find((v) => v.id === extra[i - 1]) ?? variant));
+  const packPrice = (n: number) => {
+    const sum = unitVariants(n).reduce((a, v) => a + (v?.price ?? p.price), 0);
+    const t = tiers.filter((x) => x.minQty <= n).sort((a, b) => b.minQty - a.minQty)[0];
+    return { sum, total: sum - (t ? Math.min(t.amount, sum) : 0) };
+  };
+  const units = offers.length ? pack : qty;
+  const { sum: packSum, total: packTotal } = offers.length ? packPrice(pack) : { sum: price * qty, total: price * qty };
+  /** Ajoute l'offre au panier : une ligne par coloris (« Full black × 2 »). */
+  const addPack = () => {
+    if (!offers.length) return add(p.id, qty, variant?.id);
+    const counts = new Map<string | undefined, number>();
+    for (const v of unitVariants(pack)) counts.set(v?.id, (counts.get(v?.id) ?? 0) + 1);
+    for (const [vid, n] of counts) add(p.id, n, vid);
+  };
+  /** Achat direct (publicités) : le panier reçoit exactement l'offre choisie pour ce produit, puis le formulaire de commande. */
   const buyNow = () => {
     if (!canBuy) return;
-    if (!cart.some((l) => l.id === p.id && (l.variantId ?? undefined) === (variant?.id ?? undefined))) add(p.id, qty, variant?.id);
+    for (const l of cart.filter((x) => x.id === p.id)) remove(lineKey(l.id, l.variantId));
+    addPack();
     navigate(PATHS.checkout);
   };
 
@@ -212,16 +239,6 @@ export default function Product() {
                 </>
               )}
               <span style={{ flexBasis: '100%', fontSize: 12.5, color: 'var(--graphite)' }}>شامل الضرائب · توصيل مجاني · الدفع عند الاستلام</span>
-              {(p.qtyTiers.length > 0 || catalog.qtyTiers.length > 0) && p.purchasable && (
-                // Paliers propres à ce produit (exemplaires de ce modèle), sinon paliers généraux.
-                <span style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                  {(p.qtyTiers.length ? p.qtyTiers : catalog.qtyTiers).map((t) => (
-                    <span key={t.minQty} style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--ink)', color: '#fff', fontSize: 12.5 }}>
-                      −{fmt(t.amount)} ابتداءً من {t.minQty} {p.qtyTiers.length ? 'قطع' : 'منتجات'}
-                    </span>
-                  ))}
-                </span>
-              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: canBuy ? '#1fae6b' : 'var(--faint)', boxShadow: '0 0 0 4px var(--line)' }} />{stockText}
@@ -262,11 +279,69 @@ export default function Product() {
                 </div>
               );
             })}
+            {offers.length > 0 && canBuy && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <span style={{ ...label, color: 'var(--graphite)' }}>اختر العرض</span>
+                <div role="radiogroup" aria-label="العرض" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {offers.map((n) => {
+                    const { sum, total } = packPrice(n);
+                    const on = pack === n;
+                    return (
+                      <button key={n} role="radio" aria-checked={on} onClick={() => setPack(n)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, cursor: 'pointer', textAlign: 'start', background: on ? '#fff' : 'transparent', border: `1.5px solid ${on ? 'var(--ink)' : 'var(--line-strong)'}`, transition: 'border-color .2s' }}>
+                        <span aria-hidden style={{ width: 18, height: 18, borderRadius: '50%', flex: 'none', border: `1.5px solid ${on ? 'var(--ink)' : 'var(--line-strong)'}`, boxShadow: on ? 'inset 0 0 0 4px #fff' : 'none', background: on ? 'var(--ink)' : 'transparent' }} />
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+                          <span style={{ fontSize: 15, fontWeight: 600 }}>{n === 1 ? 'قطعة واحدة' : n === 2 ? 'قطعتان' : `${n} قطع`}</span>
+                          {total < sum && <span style={{ fontSize: 12.5, color: 'var(--graphite)' }}>وفّر {fmt(sum - total)}</span>}
+                        </span>
+                        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                          <span style={{ fontSize: 16, fontWeight: 600 }}>{fmt(total)}</span>
+                          {total < sum && <span style={{ fontSize: 12.5, color: 'var(--graphite)', textDecoration: 'line-through' }}>{fmt(sum)}</span>}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {pack > 1 && p.variants.length > 1 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px', background: '#fff', border: '1px solid var(--line)', borderRadius: 14 }}>
+                    <span style={{ ...label, color: 'var(--graphite)' }}>اختر لون كل قطعة</span>
+                    {unitVariants(pack).map((uv, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13.5, minWidth: 74 }}>القطعة {i + 1}</span>
+                        {i === 0 ? (
+                          <span style={{ fontSize: 13.5, color: 'var(--graphite)' }}>{uv?.values.map((x) => x.label).join(' · ')} <span style={{ fontSize: 12 }}>(المختار أعلاه)</span></span>
+                        ) : (
+                          <span role="radiogroup" aria-label={`لون القطعة ${i + 1}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {inStockVariants.map((v) => {
+                              const on = uv?.id === v.id;
+                              const hex = v.values.find((x) => x.colorHex)?.colorHex;
+                              const name = v.values.map((x) => x.label).join(' · ');
+                              const pick = () => setExtra((xs) => { const next = [...xs]; next[i - 1] = v.id; return next; });
+                              return hex ? (
+                                <button key={v.id} role="radio" aria-checked={on} aria-label={name} title={name} onClick={pick}
+                                  style={{ width: 32, height: 32, borderRadius: '50%', padding: 0, cursor: 'pointer', background: hex, border: 0, boxShadow: on ? '0 0 0 2px var(--ivory), 0 0 0 3px var(--ink)' : 'inset 0 0 0 1px rgba(17,17,17,.18)' }} />
+                              ) : (
+                                <button key={v.id} role="radio" aria-checked={on} className={`chip${on ? ' active' : ''}`} onClick={pick} style={{ height: 36, padding: '0 14px', fontSize: 12.5 }}>{name}</button>
+                              );
+                            })}
+                          </span>
+                        )}
+                        {i > 0 && <span style={{ fontSize: 12.5, color: 'var(--graphite)' }}>{uv?.values.map((x) => x.label).join(' · ')}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <QtyStepper qty={qty} h={56} onDec={() => setQty((q) => Math.max(1, q - 1))} onInc={() => setQty((q) => q + 1)} />
+              {!offers.length && <QtyStepper qty={qty} h={56} onDec={() => setQty((q) => Math.max(1, q - 1))} onInc={() => setQty((q) => q + 1)} />}
               <button className="btn btn-outline btn-tall" disabled={!canBuy} style={{ flex: 1, minWidth: 200, opacity: canBuy ? 1 : 0.4 }} onClick={buy}>{canBuy ? 'أضف إلى السلة' : p.purchasable ? 'نفد المخزون' : 'غير متاح للبيع'}</button>
             </div>
-            {canBuy && <button className="btn btn-cta btn-tall" onClick={buyNow}>🛒 اطلب الآن · الدفع عند الاستلام</button>}
+            {canBuy && (
+              <button className="btn btn-cta btn-tall" onClick={buyNow}>
+                🛒 اطلب الآن · {fmt(packTotal)}{packTotal < packSum ? <span style={{ marginInlineStart: 8, textDecoration: 'line-through', opacity: 0.6 }}>{fmt(packSum)}</span> : null}
+              </button>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10 }}>
               {reassure(p.warranty).map((r) => (
                 <div key={r.t} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '12px 14px', background: '#fff', border: '1px solid var(--line)', borderRadius: 14, fontSize: 13 }}>
@@ -331,9 +406,13 @@ export default function Product() {
         // Barre d'achat mobile : prix et variante, ajout au panier (icône) et achat direct vers le formulaire de commande.
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 45, background: 'rgba(245,248,251,.96)', backdropFilter: 'blur(12px)', borderTop: '1px solid var(--line)', padding: '10px 16px calc(10px + env(safe-area-inset-bottom))', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 'none', maxWidth: '34%' }}>
-            <span style={{ fontSize: 16, fontWeight: 600, whiteSpace: 'nowrap' }}>{fmt(price)}</span>
-            {old != null && old > price && <span style={{ fontSize: 12, color: 'var(--graphite)', textDecoration: 'line-through' }}>{fmt(old)}</span>}
-            {variant && (p.options ?? []).length > 0 && <span style={{ fontSize: 12, color: 'var(--graphite)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{variant.values.map((v) => v.label).join(' · ')}</span>}
+            <span style={{ fontSize: 16, fontWeight: 600, whiteSpace: 'nowrap' }}>{fmt(packTotal)}</span>
+            {packTotal < packSum
+              ? <span style={{ fontSize: 12, color: 'var(--graphite)', textDecoration: 'line-through' }}>{fmt(packSum)}</span>
+              : old != null && old > price && units === 1 && <span style={{ fontSize: 12, color: 'var(--graphite)', textDecoration: 'line-through' }}>{fmt(old)}</span>}
+            <span style={{ fontSize: 12, color: 'var(--graphite)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {units > 1 ? (units === 2 ? 'قطعتان' : `${units} قطع`) : variant && (p.options ?? []).length > 0 ? variant.values.map((v) => v.label).join(' · ') : ''}
+            </span>
           </div>
           {canBuy ? (
             <>
