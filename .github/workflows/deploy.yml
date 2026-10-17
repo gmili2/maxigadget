@@ -112,11 +112,13 @@ jobs:
           # Le script d'activation de cPanel lit des variables non définies : « -u » seulement après.
           source ~/nodevenv/$APP_DIR/$NODE_MAJOR/bin/activate
           set -u
+          # Hébergement mutualisé (56 cœurs, processus limités) : moteurs Prisma à 2 threads, sinon la migration bloque.
+          export TOKIO_WORKER_THREADS=2
           cd ~/$APP_DIR
           test -f .env || { echo "::error::~/$APP_DIR/.env manquant (voir DEPLOY.md)"; exit 1; }
           npm install --omit=dev --no-audit --no-fund
           npx prisma generate
-          npx prisma migrate deploy
+          timeout 300 npx prisma migrate deploy
           node dist/cli/bootstrap.js $BOOTSTRAP_ARGS
           touch tmp/restart.txt
           EOF
