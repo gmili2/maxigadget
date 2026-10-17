@@ -124,8 +124,11 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       return products.filter((p) => p.image && p.cats.includes(tag))
         .sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''))[0]?.image;
     };
-    // /categories ne renvoie que les catégories visibles : une catégorie absente de la liste est masquée.
-    const hidden = (id: CategoryId) => status === 'ready' && id !== 'all' && !!CATEGORY_OF[id] && !categories.some((c) => c.slug === CATEGORY_OF[id]);
+    // Carte ou filtre masqué quand sa catégorie l'est (/categories ne renvoie que les visibles), ou quand plus aucune
+    // montre visible ne le concerne (collection archivée, nouveautés épuisées…) : pas de carte vide dans la boutique.
+    const hidden = (id: CategoryId) => status === 'ready' && id !== 'all' && (
+      (!!CATEGORY_OF[id] && !categories.some((c) => c.slug === CATEGORY_OF[id])) || !products.some((p) => p.cats.includes(id as Tag))
+    );
     return { site, unlocked: () => { setSite((s) => (s ? { ...s, unlocked: true } : s)); setStatus('loading'); load(); }, products, categories, imageFor, hidden, status, find: (slug) => bySlug.get(slug), reload: () => { setStatus('loading'); load(); } };
   }, [site, products, categories, status, load]);
 
