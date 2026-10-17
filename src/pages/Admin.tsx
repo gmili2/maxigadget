@@ -88,7 +88,7 @@ type VOption = { name: string; color: boolean; values: { label: string; hex: str
 type VRow = { id?: string; values: string[]; sku: string; price: string; sale: string; stock: string; active: boolean; image: string };
 type HistoryItem = { label: string; at: string; by: string };
 type AOrder = {
-  id: string; number: string; customer: string; email: string; date: string; placedAt: string; lines: { id: string; name: string; variant: string | null; qty: number; unit: number }[];
+  id: string; number: string; customer: string; email: string; date: string; placedAt: string; city: string; lines: { id: string; name: string; variant: string | null; qty: number; unit: number }[];
   subtotal: number; shipping: number; discount: number; total: number; coupon: string | null; status: OrderStatus; method: string; pay: PayStatus;
   paymentId: string | null; paymentRef: string; refundable: number; carrier: string; tracking: string; phone: string; address: string; history: HistoryItem[];
 };
@@ -173,7 +173,7 @@ const toOrder = (o: ApiOrder): AOrder => {
   const pay = o.payments.find((p) => p.status === 'PAID' || p.status === 'PARTIALLY_REFUNDED') ?? o.payments[o.payments.length - 1];
   const a = o.shippingAddress, ship = o.shipments[0];
   return {
-    id: o.id, number: o.number, customer: `${o.user.firstName} ${o.user.lastName}`.trim(), email: realEmail(o.user.email) || a.phone || o.user.phone || '', date: frDateTime(o.placedAt), placedAt: o.placedAt,
+    id: o.id, number: o.number, customer: `${o.user.firstName} ${o.user.lastName}`.trim(), email: realEmail(o.user.email) || a.phone || o.user.phone || '', date: frDateTime(o.placedAt), placedAt: o.placedAt, city: a.city ?? '',
     lines: o.items.map((i) => ({ id: i.id, name: i.productName, variant: i.variantLabel, qty: i.quantity, unit: i.unitPriceCents / 100 })),
     subtotal: o.subtotalCents / 100, shipping: o.shippingCents / 100, discount: o.discountCents / 100, total: o.totalCents / 100, coupon: o.couponCode,
     status: o.status, method: METHOD_LABEL[o.paymentMethod], pay: payLabel(o),
@@ -517,6 +517,27 @@ function downloadTemplate() {
   // BOM : Excel lit alors correctement les accents.
   const url = URL.createObjectURL(new Blob(['\uFEFF' + IMPORT_TEMPLATE], { type: 'text/csv;charset=utf-8' }));
   const a = Object.assign(document.createElement('a'), { href: url, download: 'modele-import-produits.csv' });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+/** Commandes au format CSV (Excel en français : « ; », virgule décimale, BOM pour les accents). */
+function exportOrdersCsv(rows: AOrder[], label: string) {
+  const cell = (v: string | number | null | undefined) => {
+    const t = typeof v === 'number' ? String(v).replace('.', ',') : (v ?? '');
+    return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const head = ['Numéro', 'Date', 'Statut', 'Client', 'Téléphone', 'E-mail', 'Adresse', 'Ville', 'Articles', 'Nb articles',
+    'Sous-total (DH)', 'Remise (DH)', 'Livraison (DH)', 'Total (DH)', 'Code promo', 'Paiement', 'Statut du paiement', 'Transporteur', 'N° de suivi'];
+  const lines = rows.map((o) => [
+    // ="06…" : Excel garde le téléphone en texte (sans perdre le 0 ni le +).
+    o.number, o.date, osOf(o.status)[1], o.customer, o.phone ? `="${o.phone}"` : '', o.email.includes('@') ? o.email : '', o.address, o.city,
+    o.lines.map((l) => `${l.name}${l.variant ? ` (${l.variant})` : ''} × ${l.qty}`).join(' | '), o.lines.reduce((a, l) => a + l.qty, 0),
+    o.subtotal, o.discount, o.shipping, o.total, o.coupon, o.method, o.pay, o.tracking ? o.carrier : '', o.tracking,
+  ].map(cell).join(';'));
+  const csv = '\uFEFF' + [head.join(';'), ...lines].join('\r\n');
+  const slug = label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: `commandes-${slug}-${new Date().toISOString().slice(0, 10)}.csv` });
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -1162,6 +1183,14 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
               )}
               <span style={{ fontSize: 13, color: '#55554F' }}>
                 {inPeriod.length} commande{inPeriod.length > 1 ? 's' : ''} · {fmt(periodSales.reduce((a, o) => a + o.total, 0))} de ventes (hors annulées et remboursées)
+              </span>
+              <span style={{ marginLeft: 'auto' }}>
+                <OutlineBtn onClick={() => {
+                  if (!orderRows.length) return flash('Aucune commande à exporter pour ces filtres');
+                  const p = PERIODS.find((x) => x[0] === period)![1];
+                  const st = of === 'ALL' ? '' : ' ' + osOf(of)[1];
+                  exportOrdersCsv(orderRows, period === 'custom' ? `du ${periodFrom || 'debut'} au ${periodTo || 'aujourdhui'}${st}` : p + st);
+                }}>Exporter CSV ({orderRows.length})</OutlineBtn>
               </span>
             </div>
             {tableWrap(1100, (() => {
