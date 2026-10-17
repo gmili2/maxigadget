@@ -88,7 +88,7 @@ type VOption = { name: string; color: boolean; values: { label: string; hex: str
 type VRow = { id?: string; values: string[]; sku: string; price: string; sale: string; stock: string; active: boolean; image: string };
 type HistoryItem = { label: string; at: string; by: string };
 type AOrder = {
-  id: string; number: string; customer: string; email: string; date: string; lines: { id: string; name: string; variant: string | null; qty: number; unit: number }[];
+  id: string; number: string; customer: string; email: string; date: string; placedAt: string; lines: { id: string; name: string; variant: string | null; qty: number; unit: number }[];
   subtotal: number; shipping: number; discount: number; total: number; coupon: string | null; status: OrderStatus; method: string; pay: PayStatus;
   paymentId: string | null; paymentRef: string; refundable: number; carrier: string; tracking: string; phone: string; address: string; history: HistoryItem[];
 };
@@ -141,11 +141,39 @@ const historyLabel = (h: ApiHistory) => {
 };
 /** Commandes passées sans e-mail : le compte porte une adresse technique en .invalid, on ne l'affiche pas. */
 const realEmail = (e: string) => (e.endsWith('.invalid') ? '' : e);
+/* ---------- période des commandes ---------- */
+const PERIODS = [
+  ['all', 'Toutes les dates'], ['today', 'Aujourd’hui'], ['yesterday', 'Hier'], ['7d', '7 derniers jours'], ['week', 'Cette semaine'],
+  ['month', 'Ce mois'], ['lastmonth', 'Mois dernier'], ['30d', '30 derniers jours'], ['year', 'Cette année'], ['custom', 'Personnalisée'],
+] as const;
+type Period = (typeof PERIODS)[number][0];
+/** Bornes [début, fin[ d'une période, à l'heure du navigateur ; la semaine commence le lundi. */
+function periodRange(p: Period, from: string, to: string): [Date | null, Date | null] {
+  const now = new Date();
+  const day = (d: Date, add = 0) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + add);
+  const today = day(now);
+  switch (p) {
+    case 'today': return [today, day(now, 1)];
+    case 'yesterday': return [day(now, -1), today];
+    case '7d': return [day(now, -6), day(now, 1)];
+    case '30d': return [day(now, -29), day(now, 1)];
+    case 'week': { const start = day(now, -((now.getDay() + 6) % 7)); return [start, day(start, 7)]; }
+    case 'month': return [new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 1)];
+    case 'lastmonth': return [new Date(now.getFullYear(), now.getMonth() - 1, 1), new Date(now.getFullYear(), now.getMonth(), 1)];
+    case 'year': return [new Date(now.getFullYear(), 0, 1), new Date(now.getFullYear() + 1, 0, 1)];
+    case 'custom': {
+      const d = (v: string, add = 0) => { if (!v) return null; const [y, m, j] = v.split('-').map(Number); return new Date(y, m - 1, j + add); };
+      return [d(from), d(to, 1)];
+    }
+    default: return [null, null];
+  }
+}
+
 const toOrder = (o: ApiOrder): AOrder => {
   const pay = o.payments.find((p) => p.status === 'PAID' || p.status === 'PARTIALLY_REFUNDED') ?? o.payments[o.payments.length - 1];
   const a = o.shippingAddress, ship = o.shipments[0];
   return {
-    id: o.id, number: o.number, customer: `${o.user.firstName} ${o.user.lastName}`.trim(), email: realEmail(o.user.email) || a.phone || o.user.phone || '', date: frDateTime(o.placedAt),
+    id: o.id, number: o.number, customer: `${o.user.firstName} ${o.user.lastName}`.trim(), email: realEmail(o.user.email) || a.phone || o.user.phone || '', date: frDateTime(o.placedAt), placedAt: o.placedAt,
     lines: o.items.map((i) => ({ id: i.id, name: i.productName, variant: i.variantLabel, qty: i.quantity, unit: i.unitPriceCents / 100 })),
     subtotal: o.subtotalCents / 100, shipping: o.shippingCents / 100, discount: o.discountCents / 100, total: o.totalCents / 100, coupon: o.couponCode,
     status: o.status, method: METHOD_LABEL[o.paymentMethod], pay: payLabel(o),
@@ -534,6 +562,9 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   const [pq, setPq] = useState('');
   const [productPage, setProductPage] = useState(1);
   const [orderPage, setOrderPage] = useState(1);
+  const [period, setPeriod] = useState<Period>('all');
+  const [periodFrom, setPeriodFrom] = useState('');
+  const [periodTo, setPeriodTo] = useState('');
   const [pf, setPf] = useState('Tous');
   const [of, setOf] = useState<OrderStatus | 'ALL'>('ALL');
   const [rf, setRf] = useState<ReviewStatus | 'ALL'>('PENDING');
@@ -791,7 +822,10 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   const lowStock = products.filter((p) => p.unlimited !== 'Oui' && Number(p.stock) <= 3 && p.status !== 'Archivé');
   const q = pq.trim().toLowerCase();
   const productRows = products.filter((p) => (pf === 'Tous' || (pf === 'Stock faible' ? p.unlimited !== 'Oui' && Number(p.stock) <= 3 : p.status === pf)) && (!q || (p.name + ' ' + p.sku + ' ' + p.collection).toLowerCase().includes(q)));
-  const orderRows = orders.filter((o) => of === 'ALL' || o.status === of);
+  const [pStart, pEnd] = periodRange(period, periodFrom, periodTo);
+  const inPeriod = orders.filter((o) => { const t = new Date(o.placedAt); return (!pStart || t >= pStart) && (!pEnd || t < pEnd); });
+  const orderRows = inPeriod.filter((o) => of === 'ALL' || o.status === of);
+  const periodSales = inPeriod.filter((o) => o.status !== 'CANCELLED' && o.status !== 'REFUNDED');
   const reviewRows = reviews.filter((r) => rf === 'ALL' || r.status === rf);
   const topProducts = products.filter((p) => p.status !== 'Archivé').sort((a, b) => b.sold - a.sold).slice(0, 4);
 
@@ -1055,8 +1089,29 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
           <>
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
               {([['ALL', 'Toutes'], ...OS.map((o) => [o[0], o[1]])] as [OrderStatus | 'ALL', string][]).map(([k, label]) => (
-                <Chip key={k} active={of === k} onClick={() => { setOf(k); setOrderPage(1); }}>{label}<span style={{ fontFamily: 'var(--mono)', fontSize: 11, opacity: 0.7 }}>{k === 'ALL' ? orders.length : orders.filter((o) => o.status === k).length}</span></Chip>
+                <Chip key={k} active={of === k} onClick={() => { setOf(k); setOrderPage(1); }}>{label}<span style={{ fontFamily: 'var(--mono)', fontSize: 11, opacity: 0.7 }}>{k === 'ALL' ? inPeriod.length : inPeriod.filter((o) => o.status === k).length}</span></Chip>
               ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select className="adm-input" value={period} aria-label="Période" onChange={(e) => { setPeriod(e.target.value as Period); setOrderPage(1); }}
+                style={{ height: 40, padding: '0 14px', border: '1px solid #D9D9D4', borderRadius: 999, background: '#fff', fontSize: 13.5 }}>
+                {PERIODS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+              </select>
+              {period === 'custom' && (
+                <>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>Du
+                    <input type="date" className="adm-input" value={periodFrom} max={periodTo || undefined} onChange={(e) => { setPeriodFrom(e.target.value); setOrderPage(1); }}
+                      style={{ height: 40, padding: '0 12px', border: '1px solid #D9D9D4', borderRadius: 999, background: '#fff', fontSize: 13 }} />
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>au
+                    <input type="date" className="adm-input" value={periodTo} min={periodFrom || undefined} onChange={(e) => { setPeriodTo(e.target.value); setOrderPage(1); }}
+                      style={{ height: 40, padding: '0 12px', border: '1px solid #D9D9D4', borderRadius: 999, background: '#fff', fontSize: 13 }} />
+                  </label>
+                </>
+              )}
+              <span style={{ fontSize: 13, color: '#55554F' }}>
+                {inPeriod.length} commande{inPeriod.length > 1 ? 's' : ''} · {fmt(periodSales.reduce((a, o) => a + o.total, 0))} de ventes (hors annulées et remboursées)
+              </span>
             </div>
             {tableWrap(1100, (() => {
               const cols = '120px minmax(200px,1.4fr) 140px 70px 110px 160px 150px';
