@@ -50,7 +50,7 @@ type ApiCategory = { id: string; name: string; slug: string; description: string
 type ApiProduct = {
   id: string; name: string; sku: string; reference: string; description: string; priceCents: number; salePriceCents: number | null;
   stock: number; unlimitedStock: boolean; status: string; purchasable: boolean; brand: Ref; category: Ref; collection: Ref | null; shortDescription: string | null; color: string;
-  extraSpecs: { features?: string[]; specs?: [string, string][]; [k: string]: unknown } | null; warrantyMonths: number; soldCount: number; images: ProductImage[]; videos: ProductVideo[];
+  extraSpecs: { features?: string[]; specs?: [string, string][]; [k: string]: unknown } | null; warrantyMonths: number; soldCount: number; images: ProductImage[]; videos: ProductVideo[]; qtyDiscounts?: { minQty: number; amountCents: number }[];
   options: { id: string; name: string; values: { id: string; label: string; colorHex: string | null }[] }[];
   variants: { id: string; sku: string; priceCents: number | null; salePriceCents: number | null; stock: number; isActive: boolean; imageUrl: string | null; values: { label: string; colorHex: string | null }[] }[];
 };
@@ -78,6 +78,7 @@ type AProduct = {
   id: string; name: string; sku: string; reference: string; description: string; collection: string; category: string;
   price: string; sale: string; stock: string; status: string; brand: string; kind: string; features: string; specs: string; extra: string;
   color: string; warranty: string; sold: number; images: ProductImage[]; videos: ProductVideo[]; purchasable: boolean;
+  qtyTiers: { minQty: string; amount: string }[];
   /** « Oui » / « Non » (valeur du formulaire). */
   unlimited: string;
   options: VOption[]; variants: VRow[];
@@ -115,7 +116,7 @@ const toProduct = (p: ApiProduct): AProduct => ({
   id: p.id, name: p.name, sku: p.sku, reference: p.reference, description: p.description, collection: p.collection?.name ?? '',
   category: p.category.name, price: euros(p.priceCents), sale: euros(p.salePriceCents), stock: String(p.stock), status: labelOf(PSTATUS, p.status),
   brand: p.brand.name, kind: p.shortDescription ?? '', color: p.color, ...specFields(p.extraSpecs),
-  warranty: String(p.warrantyMonths), sold: p.soldCount, images: p.images, videos: p.videos ?? [], purchasable: p.purchasable, unlimited: p.unlimitedStock ? 'Oui' : 'Non',
+  warranty: String(p.warrantyMonths), sold: p.soldCount, images: p.images, videos: p.videos ?? [], purchasable: p.purchasable, qtyTiers: (p.qtyDiscounts ?? []).map((t) => ({ minQty: String(t.minQty), amount: String(t.amountCents / 100) })), unlimited: p.unlimitedStock ? 'Oui' : 'Non',
   options: p.options.map((o) => ({
     name: o.name, color: o.values.some((v) => v.colorHex), values: o.values.map((v) => ({ label: v.label, hex: v.colorHex ?? '#111111' })),
   })),
@@ -640,6 +641,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   const [images, setImages] = useState<AProduct['images']>([]);
   const [videos, setVideos] = useState<AProduct['videos']>([]);
   const [colls, setColls] = useState<ApiCollection[]>([]);
+  const [ptiers, setPtiers] = useState<{ minQty: string; amount: string }[]>([]);
   const [opts, setOpts] = useState<VOption[]>([]);
   const [vars, setVars] = useState<VRow[]>([]);
   const [varsDirty, setVarsDirty] = useState(false);
@@ -722,7 +724,13 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
     setProducts((ps) => ps.map((x) => (x.id === p.id ? toProduct(p) : x)));
     setImages(p.images);
     setVideos(p.videos ?? []);
+    setPtiers(toProduct(p).qtyTiers);
   };
+  const saveProductTiers = (id: string) => run(async () => {
+    const tiers = ptiers.filter((t) => t.minQty || t.amount).map((t) => ({ minQty: Number(t.minQty), amountCents: cents(t.amount) }));
+    if (tiers.some((t) => !Number.isInteger(t.minQty) || t.minQty < 2 || !(t.amountCents > 0))) throw new ApiError(400, 'VALIDATION_ERROR', 'Chaque palier : au moins 2 exemplaires et une remise en DH');
+    applyProduct((await api<{ data: ApiProduct }>(`/admin/products/${id}/quantity-discounts`, { method: 'PUT', body: { tiers } })).data);
+  }, 'Remise de la montre enregistrée');
   const imageAction = (path: string, method: string, ok: string) =>
     run(async () => applyProduct((await api<{ data: ApiProduct }>(path, { method })).data), ok);
   const uploadProductImages = (id: string, files: File[]) => run(async () => {
@@ -793,10 +801,12 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
     setDrawer(kind); setEditId(id); setForm(f); setImages(imgs); setVideos(vids); setErrors({}); setOpts(o); setVars(v); setVarsDirty(false);
   };
   const openProduct = (p?: AProduct) => {
+    setPtiers([]);
     if (!p) return openForm('product', null, { name: '', sku: '', reference: '', description: '', price: '', sale: '', stock: '0', status: 'Brouillon', brand: refs.brands[0]?.name ?? '', collection: COLLS[0] ?? '', category: CATS[0] ?? '', kind: '', features: '', specs: '', extra: '{}', color: 'Blanc', warranty: '6', unlimited: 'Non' });
-    const { images: imgs, videos: vids, sold, id, options, variants, purchasable, ...rest } = p;
+    const { images: imgs, videos: vids, sold, id, options, variants, purchasable, qtyTiers, ...rest } = p;
     void sold; void purchasable;
     openForm('product', id, rest, imgs, options, variants, vids);
+    setPtiers(qtyTiers);
   };
   const openCoupon = (c?: Coupon) => openForm('coupon', c?.id ?? null, c
     ? { code: c.code, type: c.type, value: c.value, min: c.min, max: c.max, start: c.start, end: c.end, active: c.active ? 'Actif' : 'Inactif' }
@@ -1555,6 +1565,34 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                 </div>
               ) : <span style={{ fontSize: 13, color: '#6B6B66' }}>Enregistrez d’abord le produit, puis ajoutez ses vidéos.</span>}
               <span style={{ fontSize: 12, color: '#6B6B66' }}>MP4 conseillé (lisible sur tous les téléphones), MOV ou WebM, 4 vidéos par produit, affichées après les photos. Pour un chargement rapide : 15 à 30 secondes, 720p, moins de 10 Mo (40 Mo au maximum).</span>
+            </div>
+          )}
+          {drawer === 'product' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <span style={monoLabel}>Remise par quantité (ce modèle)</span>
+              {editId ? (
+                <>
+                  {ptiers.map((t, i) => {
+                    const set = (patch: Partial<typeof t>) => setPtiers((xs) => xs.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+                    const field: CSSProperties = { width: 80, height: 38, padding: '0 12px', border: '1px solid #D9D9D4', borderRadius: 999, background: '#fff', fontSize: 14 };
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 14 }}>
+                        <span>Dès</span>
+                        <input className="adm-input" type="number" min={2} value={t.minQty} aria-label="Exemplaires" onChange={(e) => set({ minQty: e.target.value })} style={field} />
+                        <span>exemplaires : −</span>
+                        <input className="adm-input" type="number" min={1} value={t.amount} aria-label="Remise en DH" onChange={(e) => set({ amount: e.target.value })} style={field} />
+                        <span>DH</span>
+                        <SmallBtn onClick={() => setPtiers((xs) => xs.filter((_, k) => k !== i))}>Retirer</SmallBtn>
+                      </div>
+                    );
+                  })}
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <OutlineBtn onClick={() => setPtiers((xs) => [...xs, { minQty: String(Math.max(1, ...xs.map((x) => Number(x.minQty) || 0)) + 1), amount: '' }])}>+ Palier</OutlineBtn>
+                    <SmallBtn dark onClick={() => saveProductTiers(editId)}>Enregistrer la remise</SmallBtn>
+                  </div>
+                </>
+              ) : <span style={{ fontSize: 13, color: '#6B6B66' }}>Enregistrez d’abord la montre, puis réglez sa remise.</span>}
+              <span style={{ fontSize: 12, color: '#6B6B66' }}>Compte les exemplaires de ce modèle dans le panier (tous coloris confondus). Sans palier ici, la montre suit la remise générale (Promotions → Remise par quantité). Non cumulable avec un code promo : la réduction la plus avantageuse s’applique.</span>
             </div>
           )}
 

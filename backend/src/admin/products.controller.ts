@@ -5,7 +5,7 @@ import { PartialType } from '@nestjs/mapped-types';
 import { Gender, MovementType, Prisma, ProductStatus, StockReason } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
-  IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, NotEquals,
+  ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, NotEquals, ValidateNested,
 } from 'class-validator';
 import { AuditService } from '../common/audit.service';
 import { CurrentUser, Roles, type AuthUser } from '../common/decorators';
@@ -55,6 +55,13 @@ class UpdateProductDto extends PartialType(CreateProductDto) {
   @IsIn([undefined], { message: 'Utilisez POST /admin/products/:id/stock pour modifier le stock' }) declare stock?: number;
 }
 class StatusDto { @IsEnum(ProductStatus) status: ProductStatus; }
+class ProductTierDto {
+  @IsInt() @Min(2) @Max(50) minQty: number;
+  @IsInt() @Min(100) @Max(10_000_000) amountCents: number;
+}
+class ProductTiersDto {
+  @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => ProductTierDto) tiers: ProductTierDto[];
+}
 class StockDto {
   /** Obligatoire pour un produit à déclinaisons. */
   @IsOptional() @IsUUID() variantId?: string;
@@ -74,6 +81,7 @@ const include = {
   collection: { select: { id: true, name: true, slug: true } },
   images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }] },
   videos: { orderBy: { position: 'asc' } },
+  qtyDiscounts: { orderBy: { minQty: 'asc' } },
   ...variantInclude,
 } satisfies Prisma.ProductInclude;
 
@@ -335,6 +343,26 @@ export class AdminProductsController {
     return { data: toDto(data) };
   }
 
+  /* ---------- remise par quantité propre à la montre ---------- */
+
+  /** Remplace les paliers de la montre (liste vide : elle revient à la remise générale). */
+  @Put(':id/quantity-discounts')
+  async setQtyDiscounts(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ProductTiersDto, @CurrentUser() me: AuthUser) {
+    const sorted = [...dto.tiers].sort((a, b) => a.minQty - b.minQty);
+    if (new Set(sorted.map((t) => t.minQty)).size !== sorted.length) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Deux paliers ont le même nombre de montres');
+    if (sorted.some((t, i) => i > 0 && t.amountCents <= sorted[i - 1].amountCents)) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Chaque palier doit offrir une remise plus grande que le précédent');
+    }
+    const data = await this.prisma.$transaction(async (tx) => {
+      await tx.product.findUniqueOrThrow({ where: { id }, select: { id: true } });
+      await tx.productQuantityDiscount.deleteMany({ where: { productId: id } });
+      for (const t of sorted) await tx.productQuantityDiscount.create({ data: { productId: id, minQty: t.minQty, amountCents: t.amountCents } });
+      await this.audit.log(me.id, 'product.quantity_discounts', 'product', id, dto, tx);
+      return tx.product.findUniqueOrThrow({ where: { id }, include });
+    });
+    return { data: toDto(data) };
+  }
+
   /* ---------- duplication ---------- */
 
   /**
@@ -369,6 +397,7 @@ export class AdminProductsController {
             waterResistanceM: src.waterResistanceM, glass: src.glass, powerReserveHours: src.powerReserveHours, warrantyMonths: src.warrantyMonths,
             extraSpecs: src.extraSpecs ?? undefined,
             images: { create: src.images.map((i) => ({ provider: i.provider, storageKey: copies.get(i.url)!.replace(/^\/api\/uploads\//, ''), url: copies.get(i.url)!, alt: i.alt, width: i.width, height: i.height, position: i.position, isPrimary: i.isPrimary })) },
+            qtyDiscounts: { create: src.qtyDiscounts.map((t) => ({ minQty: t.minQty, amountCents: t.amountCents })) },
             videos: { create: src.videos.map((v) => ({ storageKey: copies.get(v.url)!.replace(/^\/api\/uploads\//, ''), url: copies.get(v.url)!, position: v.position })) },
           },
         });

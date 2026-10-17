@@ -10,6 +10,7 @@ import { AppError } from '../common/http';
 import { PrismaService } from '../prisma.service';
 import { emailForPhone } from './no-email';
 import { type BrowserContext, MetaCapi } from './meta-capi';
+import { quantityDiscount, type Tier } from './quantity-discount';
 import { OrderMail } from './order-mail';
 import { SiteAccess } from './site-access';
 import type { CheckoutDto, QuoteDto } from './checkout.controller';
@@ -202,19 +203,24 @@ export class CheckoutService {
       coupon = { id: c.id, code: c.code };
     }
 
-    // Remise par quantité (palier le plus haut atteint), non cumulable avec le code : la plus avantageuse l'emporte.
-    const count = lines.reduce((n, l) => n + l.quantity, 0);
-    const tiers = await db.quantityDiscount.findMany({ where: { isActive: true }, orderBy: { minQty: 'asc' } });
-    const tier = [...tiers].reverse().find((t) => t.minQty <= count) ?? null;
-    const nextTier = tiers.find((t) => t.minQty > count) ?? null;
-    const quantityDiscount = tier ? Math.min(tier.amountCents, subtotal) : 0;
+    // Remise par quantité (paliers propres à une montre, sinon généraux), non cumulable avec le code :
+    // la plus avantageuse pour le client l'emporte.
+    const ids = [...new Set(lines.map((l) => l.productId))];
+    const [globalTiers, own] = await Promise.all([
+      db.quantityDiscount.findMany({ where: { isActive: true }, select: { minQty: true, amountCents: true } }),
+      db.productQuantityDiscount.findMany({ where: { productId: { in: ids } }, select: { productId: true, minQty: true, amountCents: true } }),
+    ]);
+    const productTiers = new Map<string, Tier[]>();
+    for (const t of own) productTiers.set(t.productId, [...(productTiers.get(t.productId) ?? []), t]);
+    const qty = quantityDiscount(lines, productTiers, globalTiers);
     let couponSkipped: string | null = null;
-    if (quantityDiscount > discount) {
+    if (qty.amountCents > discount) {
       couponSkipped = coupon?.code ?? null;
       coupon = null;
-      discount = quantityDiscount;
+      discount = qty.amountCents;
     }
-    const discountLabel = coupon ? `Code ${coupon.code}` : quantityDiscount && discount === quantityDiscount ? `خصم ${tier!.minQty} منتجات` : null;
+    const discountLabel = coupon ? `الرمز ${coupon.code}` : qty.amountCents && discount === qty.amountCents ? qty.label : null;
+    const nextTier = qty.nextTier;
 
     // Livraison.
     const method = await db.shippingMethod.findFirst({
@@ -228,7 +234,7 @@ export class CheckoutService {
     const free = method.freeAboveCents != null && subtotal - discount >= method.freeAboveCents;
     const shipping = (free ? 0 : method.priceCents) + (dto.paymentMethod === PaymentMethod.CASH_ON_DELIVERY ? method.codFeeCents : 0);
 
-    return { lines, subtotal, discount, discountLabel, couponSkipped, nextTier, count, shipping, total: subtotal - discount + shipping, coupon, method };
+    return { lines, subtotal, discount, discountLabel, couponSkipped, nextTier, shipping, total: subtotal - discount + shipping, coupon, method };
   }
 
   private summary(r: Awaited<ReturnType<CheckoutService['compute']>>) {
@@ -240,7 +246,7 @@ export class CheckoutService {
       // Code saisi mais non appliqué : la remise par quantité est plus avantageuse.
       couponSkipped: r.couponSkipped,
       // Prochain palier : « Ajoutez 1 montre et économisez 60 DH ».
-      nextTier: r.nextTier && { missing: r.nextTier.minQty - r.count, amountCents: r.nextTier.amountCents },
+      nextTier: r.nextTier,
     };
   }
 

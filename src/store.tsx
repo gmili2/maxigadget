@@ -20,7 +20,7 @@ interface Store {
   /** Remise par quantité estimée (DH) et son libellé ; prochain palier à atteindre. */
   qtyDiscount: number;
   qtyLabel: string | null;
-  nextTier: { missing: number; amount: number } | null;
+  nextTier: { missing: number; amount: number; productName: string | null } | null;
   add: (id: string, qty?: number, variantId?: string) => void;
   setQty: (key: string, delta: number) => void;
   remove: (key: string) => void;
@@ -101,12 +101,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
     const count = items.reduce((a, l) => a + l.qty, 0);
     const subtotal = items.reduce((a, l) => a + l.unit * l.qty, 0);
-    const tier = [...catalog.qtyTiers].reverse().find((t) => t.minQty <= count);
-    const next = catalog.qtyTiers.find((t) => t.minQty > count);
-    const qtyDiscount = tier ? Math.min(tier.amount, subtotal) : 0;
+    // Remise par quantité estimée, même règle que le serveur (backend/src/shop/quantity-discount.ts) :
+    // paliers propres à un modèle (exemplaires de ce modèle), sinon paliers généraux pour les autres montres.
+    const qty = (() => {
+      type T = { minQty: number; amount: number };
+      const best = (ts: T[], q: number) => ts.filter((t) => t.minQty <= q).sort((a, b) => b.minQty - a.minQty)[0];
+      const nxt = (ts: T[], q: number) => ts.filter((t) => t.minQty > q).sort((a, b) => a.minQty - b.minQty)[0];
+      const groups = new Map<string, { name: string; tiers: T[]; qty: number; sum: number }>();
+      for (const l of items) {
+        const g = groups.get(l.product.id) ?? { name: l.product.name, tiers: l.product.qtyTiers ?? [], qty: 0, sum: 0 };
+        g.qty += l.qty; g.sum += l.unit * l.qty; groups.set(l.product.id, g);
+      }
+      let amount = 0; const parts: string[] = []; const hints: { missing: number; amount: number; productName: string | null }[] = [];
+      let pool = { qty: 0, sum: 0 };
+      for (const g of groups.values()) {
+        if (!g.tiers.length) { pool = { qty: pool.qty + g.qty, sum: pool.sum + g.sum }; continue; }
+        const t = best(g.tiers, g.qty); if (t) { amount += Math.min(t.amount, g.sum); parts.push(`خصم ${g.qty} × ${g.name}`); }
+        const n = nxt(g.tiers, g.qty); if (n) hints.push({ missing: n.minQty - g.qty, amount: n.amount, productName: g.name });
+      }
+      if (pool.qty) {
+        const t = best(catalog.qtyTiers, pool.qty); if (t) { amount += Math.min(t.amount, pool.sum); parts.push(`خصم ${t.minQty} منتجات`); }
+        const n = nxt(catalog.qtyTiers, pool.qty); if (n) hints.push({ missing: n.minQty - pool.qty, amount: n.amount, productName: null });
+      }
+      hints.sort((a, b) => a.missing - b.missing || b.amount - a.amount);
+      return { amount, label: parts.length === 1 ? parts[0] : parts.length ? 'خصومات الكمية' : null, next: hints[0] ?? null };
+    })();
     return {
       cart, items, favs, count, subtotal, drawer, menu, search,
-      qtyDiscount, qtyLabel: tier ? `خصم ${tier.minQty} منتجات` : null, nextTier: count && next ? { missing: next.minQty - count, amount: next.amount } : null,
+      qtyDiscount: qty.amount, qtyLabel: qty.label, nextTier: qty.next,
       add: (id, qty = 1, variantId) => {
         const key = lineKey(id, variantId);
         const p = catalog.find(id);

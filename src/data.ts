@@ -44,6 +44,7 @@ export interface Product {
   image?: string; // photo principale
   photos: string[]; // toutes les photos, la principale en premier
   videos: string[]; // vidéos, affichées après les photos sur la fiche
+  qtyTiers: { minQty: number; amount: number }[]; // remise propre à ce modèle (dès N exemplaires) ; vide : remise générale
 }
 
 export const CATS: Record<CategoryId, [string, string]> = {

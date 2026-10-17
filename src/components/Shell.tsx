@@ -242,7 +242,7 @@ export function Overlays() {
             <span style={{ fontSize: 14 }}>المجموع · التوصيل مجاني</span>
             <span style={{ fontStretch: '110%', fontSize: 20, fontWeight: 500 }}>{fmt(s.subtotal - s.qtyDiscount)}</span>
           </div>
-          {s.nextTier && <span style={{ fontSize: 13, padding: '10px 12px', background: '#F2F2EF', borderRadius: 10, lineHeight: 1.5 }}>أضف {s.nextTier.missing} {s.nextTier.missing > 1 ? 'منتجات' : 'منتجًا'} ووفّر <strong>{fmt(s.nextTier.amount)}</strong> على طلبك.</span>}
+          {s.nextTier && <span style={{ fontSize: 13, padding: '10px 12px', background: '#F2F2EF', borderRadius: 10, lineHeight: 1.5 }}>أضف {s.nextTier.productName ? `${s.nextTier.missing} × ${s.nextTier.productName}` : `${s.nextTier.missing} ${s.nextTier.missing > 1 ? 'منتجات' : 'منتجًا'}`} ووفّر <strong>{fmt(s.nextTier.amount)}</strong> على طلبك.</span>}
           <button className="btn btn-cta" disabled={s.count === 0} onClick={() => go(PATHS.checkout)} style={{ opacity: s.count === 0 ? 0.4 : 1 }}>اطلب الآن</button>
           <button className="btn btn-outline" style={{ height: 50 }} onClick={() => go(PATHS.cart)}>عرض السلة</button>
         </div>

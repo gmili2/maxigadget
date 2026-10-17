@@ -66,7 +66,7 @@ export default function Cart() {
               <span style={{ fontWeight: 600 }}>المجموع</span>
               <span style={{ fontStretch: '110%', fontSize: 24, fontWeight: 500 }}>{fmt(s.subtotal - s.qtyDiscount)}</span>
             </div>
-            {s.nextTier && <span style={{ fontSize: 13, padding: '10px 12px', background: '#F2F2EF', borderRadius: 10, lineHeight: 1.5 }}>أضف {s.nextTier.missing} {s.nextTier.missing > 1 ? 'منتجات' : 'منتجًا'} ووفّر <strong>{fmt(s.nextTier.amount)}</strong> على طلبك.</span>}
+            {s.nextTier && <span style={{ fontSize: 13, padding: '10px 12px', background: '#F2F2EF', borderRadius: 10, lineHeight: 1.5 }}>أضف {s.nextTier.productName ? `${s.nextTier.missing} × ${s.nextTier.productName}` : `${s.nextTier.missing} ${s.nextTier.missing > 1 ? 'منتجات' : 'منتجًا'}`} ووفّر <strong>{fmt(s.nextTier.amount)}</strong> على طلبك.</span>}
             <button className="btn btn-cta btn-tall" style={{ marginTop: 8 }} onClick={() => navigate(PATHS.checkout)}>إتمام الطلب</button>
             <span style={{ fontSize: 12.5, color: 'var(--graphite)', lineHeight: 1.5 }}>توصيل مجاني لجميع مدن المغرب · الدفع عند الاستلام</span>
           </aside>
@@ -93,7 +93,7 @@ type Field = { name: keyof Address; label: string; ph: string; type?: string; au
 type Address = { name: string; phone: string; line1: string; city: string };
 type Quote = {
   subtotalCents: number; discountCents: number; totalCents: number; couponCode: string | null;
-  discountLabel?: string | null; couponSkipped?: string | null; nextTier?: { missing: number; amountCents: number } | null;
+  discountLabel?: string | null; couponSkipped?: string | null; nextTier?: { missing: number; amountCents: number; productName: string | null } | null;
 };
 type Confirmation = { number: string; totalCents: number };
 
@@ -255,7 +255,7 @@ export function Checkout() {
             ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}><span>المجموع الفرعي</span><span>{fmt(quote ? quote.subtotalCents / 100 : s.subtotal)}</span></div>
             {discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}><span>{quote?.discountLabel ?? `الرمز ${quote?.couponCode}`}</span><span>−{fmt(discount)}</span></div>}
-            {quote?.nextTier && <span style={{ fontSize: 13, padding: '10px 12px', background: '#F2F2EF', borderRadius: 10, lineHeight: 1.5 }}>أضف {quote.nextTier.missing} {quote.nextTier.missing > 1 ? 'منتجات' : 'منتجًا'} ووفّر <strong>{fmt(quote.nextTier.amountCents / 100)}</strong> على طلبك.</span>}
+            {quote?.nextTier && <span style={{ fontSize: 13, padding: '10px 12px', background: '#F2F2EF', borderRadius: 10, lineHeight: 1.5 }}>أضف {quote.nextTier.productName ? `${quote.nextTier.missing} × ${quote.nextTier.productName}` : `${quote.nextTier.missing} ${quote.nextTier.missing > 1 ? 'منتجات' : 'منتجًا'}`} ووفّر <strong>{fmt(quote.nextTier.amountCents / 100)}</strong> على طلبك.</span>}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 14, borderTop: '1px solid var(--line)' }}>
               <span style={{ fontWeight: 600 }}>المجموع</span>
               <span style={{ fontStretch: '110%', fontSize: 22, fontWeight: 500 }}>{fmt(total)}</span>

@@ -212,10 +212,13 @@ export default function Product() {
                 </>
               )}
               <span style={{ flexBasis: '100%', fontSize: 12.5, color: 'var(--graphite)' }}>شامل الضرائب · توصيل مجاني · الدفع عند الاستلام</span>
-              {catalog.qtyTiers.length > 0 && p.purchasable && (
+              {(p.qtyTiers.length > 0 || catalog.qtyTiers.length > 0) && p.purchasable && (
+                // Paliers propres à ce produit (exemplaires de ce modèle), sinon paliers généraux.
                 <span style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                  {catalog.qtyTiers.map((t) => (
-                    <span key={t.minQty} style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--ink)', color: '#fff', fontSize: 12.5 }}>−{fmt(t.amount)} ابتداءً من {t.minQty} منتجات</span>
+                  {(p.qtyTiers.length ? p.qtyTiers : catalog.qtyTiers).map((t) => (
+                    <span key={t.minQty} style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--ink)', color: '#fff', fontSize: 12.5 }}>
+                      −{fmt(t.amount)} ابتداءً من {t.minQty} {p.qtyTiers.length ? 'قطع' : 'منتجات'}
+                    </span>
                   ))}
                 </span>
               )}
