@@ -18,6 +18,8 @@ type Db = Prisma.TransactionClient | PrismaService;
 type Line = {
   productId: string; variantId: string | null; slug: string; name: string; variantLabel: string | null; sku: string;
   imageUrl: string | null; unitPriceCents: number; quantity: number; totalCents: number; available: number;
+  /** Stock illimité : rien à décompter. */
+  unlimited: boolean;
 };
 
 const err = (status: HttpStatus, code: string, message: string, details?: unknown) => new AppError(status, code, message, details);
@@ -86,6 +88,10 @@ export class CheckoutService {
 
       // Réservation du stock (les lignes sont verrouillées depuis compute()).
       for (const l of r.lines) {
+        if (l.unlimited) {
+          await tx.product.update({ where: { id: l.productId }, data: { soldCount: { increment: l.quantity } } });
+          continue;
+        }
         if (l.variantId) {
           await tx.productVariant.update({ where: { id: l.variantId }, data: { stock: { decrement: l.quantity } } });
           await syncProductStock(tx, l.productId);
@@ -151,12 +157,13 @@ export class CheckoutService {
       const v = w.variantId ? active.find((x) => x.id === w.variantId) : undefined;
       if (w.variantId && !v) { problems.push({ slug: w.slug, variantId: w.variantId, reason: 'UNAVAILABLE' }); continue; }
       const stock = v ? (lock ? (await db.productVariant.findUniqueOrThrow({ where: { id: v.id }, select: { stock: true } })).stock : v.stock) : fresh.stock;
-      if (stock < w.quantity) { problems.push({ slug: w.slug, variantId: w.variantId, reason: 'OUT_OF_STOCK', available: stock }); continue; }
+      // Stock illimité : toujours commandable, rien n'est décompté.
+      if (!p.unlimitedStock && stock < w.quantity) { problems.push({ slug: w.slug, variantId: w.variantId, reason: 'OUT_OF_STOCK', available: stock }); continue; }
       const price = v ? this.pricing.variantPrice(p, v, promos) : this.pricing.price(p, promos);
       lines.push({
         productId: p.id, variantId: v?.id ?? null, slug: p.slug, name: p.name, variantLabel: v ? variantLabel(v) : null, sku: v?.sku ?? p.sku,
         imageUrl: v?.imageUrl ?? p.images[0]?.url ?? null, unitPriceCents: price.finalPriceCents, quantity: w.quantity,
-        totalCents: price.finalPriceCents * w.quantity, available: stock,
+        totalCents: price.finalPriceCents * w.quantity, available: stock, unlimited: p.unlimitedStock,
       });
     }
     if (problems.length) {
@@ -212,7 +219,7 @@ export class CheckoutService {
 
   private summary(r: Awaited<ReturnType<CheckoutService['compute']>>) {
     return {
-      lines: r.lines.map(({ available: _a, productId: _p, ...l }) => l),
+      lines: r.lines.map(({ available: _a, productId: _p, unlimited: _u, ...l }) => l),
       subtotalCents: r.subtotal, discountCents: r.discount, shippingCents: r.shipping, totalCents: r.total,
       couponCode: r.coupon?.code ?? null, shippingMethod: { id: r.method.id, name: r.method.name },
     };

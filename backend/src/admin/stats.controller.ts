@@ -95,7 +95,7 @@ export class AdminStatsController {
   async lowStock() {
     const data = await this.prisma.$queryRaw<{ id: string; name: string; sku: string; stock: number; lowStockThreshold: number }[]>`
       SELECT id, name, sku, stock, lowStockThreshold FROM products
-      WHERE status <> 'ARCHIVED' AND stock <= lowStockThreshold ORDER BY stock, name`;
+      WHERE status <> 'ARCHIVED' AND NOT unlimitedStock AND stock <= lowStockThreshold ORDER BY stock, name`;
     return { data };
   }
 }

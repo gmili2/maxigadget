@@ -294,6 +294,8 @@ model Product {
   saleEndsAt        DateTime?
   stock             Int           @default(0)
   lowStockThreshold Int           @default(3)
+  /// true : toujours commandable, aucun stock décompté (fabrication à la demande, fournisseur sans rupture).
+  unlimitedStock    Boolean       @default(false)
   status            ProductStatus @default(DRAFT)
   isFeatured        Boolean       @default(false)
   /// false : produit présenté en vitrine, impossible à commander (contrôlé par l\'API).

@@ -124,7 +124,7 @@ export class SeoController {
     const prices = variants.length ? variants.map((v) => this.pricing.variantPrice(p, v, promos).finalPriceCents) : [this.pricing.price(p, promos).finalPriceCents];
     const low = Math.min(...prices);
     const high = Math.max(...prices);
-    const inStock = p.stock > 0;
+    const inStock = p.unlimitedStock || p.stock > 0;
     const images = p.images.map((i) => this.abs(i.url));
     const colors = [...new Set(variants.flatMap((v) => v.values.map((x) => x.optionValue.label)))];
     const pageUrl = `${this.origin}/produit/${p.slug}`;

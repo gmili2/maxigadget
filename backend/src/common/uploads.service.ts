@@ -1,7 +1,7 @@
 import { Global, HttpStatus, Injectable, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, unlink, writeFile } from 'node:fs/promises';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { join, resolve } from 'node:path';
@@ -96,6 +96,22 @@ export class UploadsService {
       chunks.push(Buffer.from(chunk));
     }
     return this.saveBuffer(Buffer.concat(chunks), folder);
+  }
+
+  /**
+   * Copie un fichier envoyé ici sous un nouveau nom (duplication d'une montre : chaque montre garde ses propres
+   * fichiers, supprimer l'une n'efface pas les photos de l'autre). Les autres adresses sont renvoyées telles quelles.
+   */
+  async copyByUrl(url: string) {
+    if (!url.startsWith(UPLOADS_URL + '/')) return url;
+    const rel = url.slice(UPLOADS_URL.length + 1);
+    const src = resolve(this.root, rel);
+    if (!src.startsWith(this.root + '/')) return url;
+    const folder = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
+    const ext = rel.slice(rel.lastIndexOf('.'));
+    const name = `${randomUUID()}${ext}`;
+    await copyFile(src, join(this.root, folder, name));
+    return `${UPLOADS_URL}/${folder ? folder + '/' : ''}${name}`;
   }
 
   /** Supprime un fichier envoyé ici ; ignore les autres adresses (photos du site, futurs fichiers Cloudinary). */

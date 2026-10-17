@@ -69,7 +69,7 @@ export class CatalogController {
     ] });
     if (q.movement) where.movementType = q.movement;
     if (q.gender) where.gender = q.gender;
-    if (q.inStock) where.stock = { gt: 0 };
+    if (q.inStock) and.push({ OR: [{ stock: { gt: 0 } }, { unlimitedStock: true }] });
     if (q.featured) where.isFeatured = true;
     if (q.isNew) where.publishedAt = { gte: new Date(Date.now() - NEW_DAYS * 86_400_000) };
     where.AND = and;
@@ -132,7 +132,7 @@ export class CatalogController {
   private toDto(p: ProductRow, promos: Awaited<ReturnType<PricingService['activePromotions']>>) {
     const variants = p.variants.filter((v) => v.isActive).map((v) => ({
       id: v.id, sku: v.sku, values: variantValues(v), ...this.pricing.variantPrice(p, v, promos),
-      inStock: v.stock > 0, lowStock: v.stock > 0 && v.stock <= p.lowStockThreshold, imageUrl: v.imageUrl,
+      inStock: p.unlimitedStock || v.stock > 0, lowStock: !p.unlimitedStock && v.stock > 0 && v.stock <= p.lowStockThreshold, imageUrl: v.imageUrl,
     }));
     // Les valeurs sans déclinaison active sont masquées ; une option avec pastilles sert d'aperçu des coloris.
     const used = new Set(variants.flatMap((v) => v.values.map((x) => x.id)));
@@ -146,7 +146,8 @@ export class CatalogController {
       currency: p.currency, ...base,
       priceFromCents: finals.length ? Math.min(...finals) : base.finalPriceCents,
       hasPriceRange: finals.length > 1 && Math.min(...finals) !== Math.max(...finals),
-      inStock: p.stock > 0, lowStock: p.stock > 0 && p.stock <= p.lowStockThreshold, stock: p.stock <= p.lowStockThreshold ? p.stock : null,
+      inStock: p.unlimitedStock || p.stock > 0, lowStock: !p.unlimitedStock && p.stock > 0 && p.stock <= p.lowStockThreshold,
+      stock: !p.unlimitedStock && p.stock <= p.lowStockThreshold ? p.stock : null,
       isFeatured: p.isFeatured, purchasable: p.purchasable || this.access.enabled, gender: p.gender, brand: p.brand, category: p.category, collection: p.collection,
       movementType: p.movementType, caliber: p.caliber, caseMaterial: p.caseMaterial, strapMaterial: p.strapMaterial,
       color: p.color, dialColor: p.dialColor, diameterMm: Number(p.diameterMm), thicknessMm: p.thicknessMm == null ? null : Number(p.thicknessMm),

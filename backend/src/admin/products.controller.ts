@@ -28,6 +28,7 @@ export class CreateProductDto {
   @IsOptional() @IsDateString() saleEndsAt?: string | null;
   @IsOptional() @IsInt() @Min(0) @Max(100_000) stock?: number;
   @IsOptional() @IsInt() @Min(0) lowStockThreshold?: number;
+  @IsOptional() @IsBoolean() unlimitedStock?: boolean;
   @IsOptional() @IsEnum(ProductStatus) status?: ProductStatus;
   @IsOptional() @IsBoolean() isFeatured?: boolean;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
@@ -137,7 +138,7 @@ export class AdminProductsController {
       { name: { contains: q.q } }, { sku: { contains: q.q } },
       { reference: { contains: q.q } }, { collection: { name: { contains: q.q } } },
     ];
-    if (q.lowStock) where.stock = { lte: 3 };
+    if (q.lowStock) { where.stock = { lte: 3 }; where.unlimitedStock = false; }
     const [rows, total] = await Promise.all([
       this.prisma.product.findMany({ where, include, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], ...skipTake(q) }),
       this.prisma.product.count({ where }),
@@ -332,6 +333,72 @@ export class AdminProductsController {
     });
     await this.uploads.removeByUrl(video.url);
     return { data: toDto(data) };
+  }
+
+  /* ---------- duplication ---------- */
+
+  /**
+   * Copie de la montre en brouillon : textes, prix, caractéristiques, coloris, photos et vidéos
+   * (fichiers recopiés : chaque montre garde les siens). Nouveau SKU, stock à 0, ventes et avis remis à zéro.
+   */
+  @Post(':id/duplicate')
+  async duplicate(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() me: AuthUser) {
+    const src = await this.prisma.product.findUniqueOrThrow({ where: { id }, include });
+    const sku = await this.freeSku(src.sku);
+    const name = `${src.name} (copie)`.slice(0, 160);
+    let slug = slugify(name).slice(0, 170) || 'montre-copie';
+    for (let i = 2; await this.prisma.product.findUnique({ where: { slug } }); i++) slug = `${slugify(name).slice(0, 165)}-${i}`;
+
+    // Fichiers copiés avant la transaction ; supprimés si elle échoue.
+    const copies = new Map<string, string>();
+    const copy = async (url: string) => { if (!copies.has(url)) copies.set(url, await this.uploads.copyByUrl(url)); return copies.get(url)!; };
+    try {
+      for (const img of src.images) await copy(img.url);
+      for (const v of src.videos) await copy(v.url);
+      for (const v of src.variants) if (v.imageUrl) await copy(v.imageUrl);
+
+      const data = await this.prisma.$transaction(async (tx) => {
+        const p = await tx.product.create({
+          data: {
+            name, slug, sku, reference: sku, shortDescription: src.shortDescription, description: src.description, currency: src.currency,
+            priceCents: src.priceCents, salePriceCents: src.salePriceCents, saleStartsAt: src.saleStartsAt, saleEndsAt: src.saleEndsAt,
+            stock: 0, lowStockThreshold: src.lowStockThreshold, unlimitedStock: src.unlimitedStock, status: 'DRAFT', purchasable: src.purchasable,
+            gender: src.gender, brandId: src.brandId, categoryId: src.categoryId, collectionId: src.collectionId,
+            movementType: src.movementType, caliber: src.caliber, caseMaterial: src.caseMaterial, strapMaterial: src.strapMaterial,
+            color: src.color, dialColor: src.dialColor, diameterMm: src.diameterMm, thicknessMm: src.thicknessMm, lugWidthMm: src.lugWidthMm,
+            waterResistanceM: src.waterResistanceM, glass: src.glass, powerReserveHours: src.powerReserveHours, warrantyMonths: src.warrantyMonths,
+            extraSpecs: src.extraSpecs ?? undefined,
+            images: { create: src.images.map((i) => ({ provider: i.provider, storageKey: copies.get(i.url)!.replace(/^\/api\/uploads\//, ''), url: copies.get(i.url)!, alt: i.alt, width: i.width, height: i.height, position: i.position, isPrimary: i.isPrimary })) },
+            videos: { create: src.videos.map((v) => ({ storageKey: copies.get(v.url)!.replace(/^\/api\/uploads\//, ''), url: copies.get(v.url)!, position: v.position })) },
+          },
+        });
+        if (src.options.length) {
+          await replaceVariants(tx, p.id, {
+            options: src.options.map((o) => ({ name: o.name, values: o.values.map((v) => ({ label: v.label, colorHex: v.colorHex })) })),
+            variants: src.variants.map((v, i) => ({
+              values: variantValues(v).map((x) => x.label), sku: `${sku}-${i + 1}`, priceCents: v.priceCents, salePriceCents: v.salePriceCents,
+              stock: 0, isActive: v.isActive, imageUrl: v.imageUrl ? copies.get(v.imageUrl)! : null,
+            })),
+          }, me.id);
+        }
+        await this.audit.log(me.id, 'product.duplicate', 'product', p.id, { from: src.id, sku }, tx);
+        return tx.product.findUniqueOrThrow({ where: { id: p.id }, include });
+      }, { timeout: 20_000 });
+      return { data: toDto(data) };
+    } catch (e) {
+      for (const [from, to] of copies) if (to !== from) await this.uploads.removeByUrl(to);
+      throw e;
+    }
+  }
+
+  /** SKU libre pour une copie (« ABC-12-COPIE », puis « -COPIE-2 »…), déclinaisons « SKU-1 », « SKU-2 »… comprises. */
+  private async freeSku(base: string) {
+    const root = base.replace(/-COPIE(-\d+)?$/, '').slice(0, 44);
+    for (let i = 1; ; i++) {
+      const sku = i === 1 ? `${root}-COPIE` : `${root}-COPIE-${i}`;
+      const taken = await this.prisma.product.count({ where: { sku } }) + await this.prisma.productVariant.count({ where: { sku: { startsWith: `${sku}-` } } });
+      if (!taken) return sku;
+    }
   }
 
   /* ---------- suppression définitive ---------- */

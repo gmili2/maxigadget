@@ -49,7 +49,7 @@ type ApiCollection = { id: string; name: string; slug: string; isActive: boolean
 type ApiCategory = { id: string; name: string; slug: string; description: string | null; imageUrl: string | null; position: number; isActive: boolean; _count: { products: number } };
 type ApiProduct = {
   id: string; name: string; sku: string; reference: string; description: string; priceCents: number; salePriceCents: number | null;
-  stock: number; status: string; purchasable: boolean; brand: Ref; category: Ref; collection: Ref | null; shortDescription: string | null; color: string;
+  stock: number; unlimitedStock: boolean; status: string; purchasable: boolean; brand: Ref; category: Ref; collection: Ref | null; shortDescription: string | null; color: string;
   extraSpecs: { features?: string[]; specs?: [string, string][]; [k: string]: unknown } | null; warrantyMonths: number; soldCount: number; images: ProductImage[]; videos: ProductVideo[];
   options: { id: string; name: string; values: { id: string; label: string; colorHex: string | null }[] }[];
   variants: { id: string; sku: string; priceCents: number | null; salePriceCents: number | null; stock: number; isActive: boolean; imageUrl: string | null; values: { label: string; colorHex: string | null }[] }[];
@@ -78,6 +78,8 @@ type AProduct = {
   id: string; name: string; sku: string; reference: string; description: string; collection: string; category: string;
   price: string; sale: string; stock: string; status: string; brand: string; kind: string; features: string; specs: string; extra: string;
   color: string; warranty: string; sold: number; images: ProductImage[]; videos: ProductVideo[]; purchasable: boolean;
+  /** « Oui » / « Non » (valeur du formulaire). */
+  unlimited: string;
   options: VOption[]; variants: VRow[];
 };
 /** Option en cours d'édition (Couleur, Bracelet…) ; `color` affiche des pastilles. */
@@ -113,7 +115,7 @@ const toProduct = (p: ApiProduct): AProduct => ({
   id: p.id, name: p.name, sku: p.sku, reference: p.reference, description: p.description, collection: p.collection?.name ?? '',
   category: p.category.name, price: euros(p.priceCents), sale: euros(p.salePriceCents), stock: String(p.stock), status: labelOf(PSTATUS, p.status),
   brand: p.brand.name, kind: p.shortDescription ?? '', color: p.color, ...specFields(p.extraSpecs),
-  warranty: String(p.warrantyMonths), sold: p.soldCount, images: p.images, videos: p.videos ?? [], purchasable: p.purchasable,
+  warranty: String(p.warrantyMonths), sold: p.soldCount, images: p.images, videos: p.videos ?? [], purchasable: p.purchasable, unlimited: p.unlimitedStock ? 'Oui' : 'Non',
   options: p.options.map((o) => ({
     name: o.name, color: o.values.some((v) => v.colorHex), values: o.values.map((v) => ({ label: v.label, hex: v.colorHex ?? '#111111' })),
   })),
@@ -632,6 +634,12 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
       applyProduct((await api<{ data: ApiProduct }>(`/admin/products/${id}/videos`, { method: 'POST', body: fd })).data);
     }
   }, files.length > 1 ? `${files.length} vidéos ajoutées` : 'Vidéo ajoutée');
+  const duplicateProduct = (p: AProduct) => run(async () => {
+    const r = await api<{ data: ApiProduct }>(`/admin/products/${p.id}/duplicate`, { method: 'POST' });
+    const copy = toProduct(r.data);
+    setProducts((ps) => [...ps, copy]);
+    openProduct(copy); // la copie s'ouvre directement pour être renommée et ajustée
+  }, `« ${p.name} » dupliqué en brouillon`);
   const deleteProduct = (p: AProduct) => {
     if (!window.confirm(`Supprimer définitivement « ${p.name} » ?\n\nSes photos et vidéos seront effacées du serveur. Les commandes déjà passées restent dans l’historique.\nPour le retirer seulement de la boutique, utilisez plutôt « Archiver ».`)) return;
     run(async () => {
@@ -679,7 +687,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
     setDrawer(kind); setEditId(id); setForm(f); setImages(imgs); setVideos(vids); setErrors({}); setOpts(o); setVars(v); setVarsDirty(false);
   };
   const openProduct = (p?: AProduct) => {
-    if (!p) return openForm('product', null, { name: '', sku: '', reference: '', description: '', price: '', sale: '', stock: '0', status: 'Brouillon', brand: refs.brands[0]?.name ?? '', collection: COLLS[0] ?? '', category: CATS[0] ?? '', kind: '', features: '', specs: '', extra: '{}', color: 'Blanc', warranty: '6' });
+    if (!p) return openForm('product', null, { name: '', sku: '', reference: '', description: '', price: '', sale: '', stock: '0', status: 'Brouillon', brand: refs.brands[0]?.name ?? '', collection: COLLS[0] ?? '', category: CATS[0] ?? '', kind: '', features: '', specs: '', extra: '{}', color: 'Blanc', warranty: '6', unlimited: 'Non' });
     const { images: imgs, videos: vids, sold, id, options, variants, purchasable, ...rest } = p;
     void sold; void purchasable;
     openForm('product', id, rest, imgs, options, variants, vids);
@@ -696,7 +704,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
     name: f.name.trim(), sku: f.sku.trim().toUpperCase(), reference: f.reference.trim() || undefined, description: f.description,
     priceCents: cents(f.price), salePriceCents: f.sale ? cents(f.sale) : null, status: keyOf(PSTATUS, f.status),
     brandId: idOf(refs.brands, f.brand), categoryId: idOf(refs.categories, f.category), collectionId: idOf(refs.collections, f.collection) ?? null,
-    shortDescription: f.kind.trim() || null, color: f.color.trim() || 'Blanc', warrantyMonths: Number(f.warranty || 0), extraSpecs: specsBody(f),
+    shortDescription: f.kind.trim() || null, color: f.color.trim() || 'Blanc', warrantyMonths: Number(f.warranty || 0), extraSpecs: specsBody(f), unlimitedStock: f.unlimited === 'Oui',
     // Colonnes héritées du modèle « montre » de la base : valeurs neutres, non affichées en boutique.
     movementType: 'QUARTZ', caseMaterial: '—', strapMaterial: '—', diameterMm: 10, waterResistanceM: 0, glass: '—',
   });
@@ -741,10 +749,10 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
           let p = (await api<{ data: ApiProduct }>(`/admin/products/${editId}`, { method: 'PATCH', body })).data;
           if (varsDirty) p = (await saveVariants(editId)).data;
           const delta = Number(f.stock) - p.stock;
-          if (!p.variants.length && delta) p = (await api<{ data: ApiProduct }>(`/admin/products/${editId}/stock`, { method: 'POST', body: { delta, reason: 'ADJUSTMENT', note: 'Correction depuis la fiche produit' } })).data;
+          if (!p.variants.length && !p.unlimitedStock && delta) p = (await api<{ data: ApiProduct }>(`/admin/products/${editId}/stock`, { method: 'POST', body: { delta, reason: 'ADJUSTMENT', note: 'Correction depuis la fiche produit' } })).data;
           setProducts((ps) => ps.map((x) => (x.id === editId ? toProduct(p) : x)));
         } else {
-          let p = (await api<{ data: ApiProduct }>('/admin/products', { method: 'POST', body: { ...body, stock: vars.length ? 0 : Number(f.stock) } })).data;
+          let p = (await api<{ data: ApiProduct }>('/admin/products', { method: 'POST', body: { ...body, stock: vars.length || f.unlimited === 'Oui' ? 0 : Number(f.stock) } })).data;
           // Le produit existe déjà si l'enregistrement des déclinaisons échoue : on passe en modification.
           setProducts((ps) => [...ps, toProduct(p)]);
           setEditId(p.id);
@@ -780,9 +788,9 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   const pendingReviews = reviews.filter((r) => r.status === 'PENDING').length;
   const SALES = sales.map((s) => s.revenue);
   const maxS = Math.max(1, ...SALES);
-  const lowStock = products.filter((p) => Number(p.stock) <= 3 && p.status !== 'Archivé');
+  const lowStock = products.filter((p) => p.unlimited !== 'Oui' && Number(p.stock) <= 3 && p.status !== 'Archivé');
   const q = pq.trim().toLowerCase();
-  const productRows = products.filter((p) => (pf === 'Tous' || (pf === 'Stock faible' ? Number(p.stock) <= 3 : p.status === pf)) && (!q || (p.name + ' ' + p.sku + ' ' + p.collection).toLowerCase().includes(q)));
+  const productRows = products.filter((p) => (pf === 'Tous' || (pf === 'Stock faible' ? p.unlimited !== 'Oui' && Number(p.stock) <= 3 : p.status === pf)) && (!q || (p.name + ' ' + p.sku + ' ' + p.collection).toLowerCase().includes(q)));
   const orderRows = orders.filter((o) => of === 'ALL' || o.status === of);
   const reviewRows = reviews.filter((r) => rf === 'ALL' || r.status === rf);
   const topProducts = products.filter((p) => p.status !== 'Archivé').sort((a, b) => b.sold - a.sold).slice(0, 4);
@@ -828,7 +836,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   let groups: { title: string; fields: FieldDef[] }[] = [];
   if (drawer === 'product') groups = [
     { title: 'Informations', fields: [{ k: 'name', label: 'Nom *', ph: 'Neck Beauty Device', full: true }, { k: 'sku', label: 'SKU *', ph: 'MG-NECK-01' }, { k: 'reference', label: 'Référence', ph: 'Réf. fournisseur' }, { k: 'kind', label: 'Accroche (sous le nom)', ph: 'Lifting du cou · 7 modes', full: true }, { k: 'description', label: 'Description', area: true, full: true, ph: 'Bénéfices, utilisation, pour qui…' }] },
-    { title: 'Prix & stock', fields: [{ k: 'price', label: 'Prix (DH) *', type: 'number', ph: '249' }, { k: 'sale', label: 'Prix promo (DH)', type: 'number', ph: 'Optionnel' }, { k: 'stock', label: vars.length ? 'Stock (déclinaisons)' : 'Stock *', type: 'number', disabled: vars.length > 0 }, { k: 'status', label: 'Statut', options: PSTATUS.map((x) => x[1]) }] },
+    { title: 'Prix & stock', fields: [{ k: 'price', label: 'Prix (DH) *', type: 'number', ph: '249' }, { k: 'sale', label: 'Prix promo (DH)', type: 'number', ph: 'Optionnel' }, { k: 'stock', label: form.unlimited === 'Oui' ? 'Stock (illimité)' : vars.length ? 'Stock (déclinaisons)' : 'Stock *', type: 'number', disabled: vars.length > 0 || form.unlimited === 'Oui' }, { k: 'status', label: 'Statut', options: PSTATUS.map((x) => x[1]) }, { k: 'unlimited', label: 'Stock illimité (toujours commandable, rien n’est décompté)', options: ['Non', 'Oui'], full: true }] },
     { title: 'Classement', fields: [{ k: 'category', label: 'Catégorie', options: CATS }, { k: 'collection', label: 'Collection', options: COLLS }, { k: 'brand', label: 'Marque', options: refs.brands.map((b) => b.name), full: true }] },
     { title: 'Fiche produit', fields: [{ k: 'features', label: 'Points forts (un par ligne)', area: true, full: true, ph: 'Réduit les rides du cou\nRaffermit la peau\n7 modes de soin' }, { k: 'specs', label: 'Fiche technique (« Clé : valeur » par ligne)', area: true, full: true, ph: 'Autonomie : 2 h\nCharge : USB-C\nContenu : appareil, câble, notice' }, { k: 'color', label: 'Couleur principale' }, { k: 'warranty', label: 'Garantie (mois)', type: 'number' }] },
   ];
@@ -1017,7 +1025,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                           )}</span>
                         <span style={{ fontSize: 13.5 }}>{p.category}</span>
                         <span style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 14 }}><span>{fmt(Number(p.price) || 0)}</span>{p.sale && <span style={{ fontSize: 12, color: '#6B6B66' }}>promo {fmt(Number(p.sale))}</span>}</span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5 }}><Dot size={7} c={st === 0 ? DOT.red : st <= 3 ? DOT.amber : DOT.green} />{p.stock}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5 }}><Dot size={7} c={p.unlimited === 'Oui' ? DOT.green : st === 0 ? DOT.red : st <= 3 ? DOT.amber : DOT.green} />{p.unlimited === 'Oui' ? <span title="Stock illimité">∞</span> : p.stock}</span>
                         <span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
                           <Pill dot={p.status === 'Actif' ? DOT.green : p.status === 'Brouillon' ? DOT.amber : DOT.grey}>{p.status}</Pill>
                           {!p.purchasable && <span style={{ fontSize: 11.5, color: '#6B6B66' }} title="Non disponible à la vente">Vitrine</span>}
@@ -1029,6 +1037,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                             const r = await api<{ data: ApiProduct }>(`/admin/products/${p.id}/status`, { method: 'PATCH', body: { status: p.status === 'Archivé' ? 'DRAFT' : 'ARCHIVED' } });
                             setProducts((ps) => ps.map((x) => (x.id === p.id ? toProduct(r.data) : x)));
                           }, p.status === 'Archivé' ? 'Produit restauré en brouillon' : 'Produit archivé')}>{p.status === 'Archivé' ? 'Restaurer' : 'Archiver'}</SmallBtn>
+                          <SmallBtn onClick={() => duplicateProduct(p)}>Dupliquer</SmallBtn>
                           <SmallBtn onClick={() => deleteProduct(p)}>Supprimer</SmallBtn>
                         </span>
                       </div>

@@ -162,6 +162,12 @@ export class OrdersService {
   private async restock(tx: Tx, orderId: string, items: { productId: string | null; variantId: string | null; quantity: number }[], reason: StockReason, actorId: string) {
     for (const it of items) {
       if (!it.productId) continue;
+      // Stock illimité : rien n'avait été décompté, rien n'est remis.
+      const product = await tx.product.findUnique({ where: { id: it.productId }, select: { unlimitedStock: true } });
+      if (product?.unlimitedStock) {
+        await tx.product.updateMany({ where: { id: it.productId, soldCount: { gte: it.quantity } }, data: { soldCount: { decrement: it.quantity } } });
+        continue;
+      }
       // La déclinaison a pu être supprimée depuis : le stock revient alors au produit seul.
       const variant = it.variantId ? await tx.productVariant.findUnique({ where: { id: it.variantId } }) : null;
       if (variant) {
