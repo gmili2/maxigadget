@@ -60,7 +60,7 @@ type ApiOrder = {
   subtotalCents: number; shippingCents: number; discountCents: number; totalCents: number; couponCode: string | null; discountLabel?: string | null; placedAt: string;
   shippingMethodName: string; shippingAddress: { firstName: string; lastName: string; line1: string; line2?: string; postalCode: string; city: string; country: string; phone: string };
   user: { email: string; firstName: string; lastName: string; phone: string | null };
-  items: { id: string; productName: string; variantLabel: string | null; quantity: number; unitPriceCents: number; totalCents: number }[];
+  items: { id: string; productName: string; variantLabel: string | null; quantity: number; unitPriceCents: number; totalCents: number; imageUrl: string | null }[];
   payments: { id: string; provider: string; providerPaymentId: string | null; status: string; amountCents: number; refundedCents: number }[];
   shipments: { carrier: string; trackingNumber: string | null; trackingUrl: string | null }[];
   history: ApiHistory[];
@@ -89,7 +89,7 @@ type VOption = { name: string; color: boolean; values: { label: string; hex: str
 type VRow = { id?: string; values: string[]; sku: string; price: string; sale: string; stock: string; active: boolean; image: string };
 type HistoryItem = { label: string; at: string; by: string };
 type AOrder = {
-  id: string; number: string; customer: string; email: string; date: string; placedAt: string; city: string; lines: { id: string; name: string; variant: string | null; qty: number; unit: number }[];
+  id: string; number: string; customer: string; email: string; date: string; placedAt: string; city: string; lines: { id: string; name: string; variant: string | null; qty: number; unit: number; image: string | null }[];
   subtotal: number; shipping: number; discount: number; total: number; coupon: string | null; status: OrderStatus; method: string; pay: PayStatus;
   paymentId: string | null; paymentRef: string; refundable: number; carrier: string; tracking: string; phone: string; address: string; history: HistoryItem[];
 };
@@ -175,7 +175,7 @@ const toOrder = (o: ApiOrder): AOrder => {
   const a = o.shippingAddress, ship = o.shipments[0];
   return {
     id: o.id, number: o.number, customer: `${o.user.firstName} ${o.user.lastName}`.trim(), email: realEmail(o.user.email) || a.phone || o.user.phone || '', date: frDateTime(o.placedAt), placedAt: o.placedAt, city: a.city ?? '',
-    lines: o.items.map((i) => ({ id: i.id, name: i.productName, variant: i.variantLabel, qty: i.quantity, unit: i.unitPriceCents / 100 })),
+    lines: o.items.map((i) => ({ id: i.id, name: i.productName, variant: i.variantLabel, qty: i.quantity, unit: i.unitPriceCents / 100, image: i.imageUrl })),
     subtotal: o.subtotalCents / 100, shipping: o.shippingCents / 100, discount: o.discountCents / 100, total: o.totalCents / 100, coupon: o.discountLabel ?? (o.couponCode ? `Code ${o.couponCode}` : null),
     status: o.status, method: METHOD_LABEL[o.paymentMethod], pay: payLabel(o),
     paymentId: pay?.id ?? null, paymentRef: pay?.providerPaymentId ? 'Stripe · ' + pay.providerPaymentId : o.paymentMethod === 'BANK_TRANSFER' ? 'Virement · motif ' + o.number : 'Encaissement à la livraison',
@@ -1646,7 +1646,8 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                 <div style={{ ...card, padding: 18, display: 'flex', flexDirection: 'column' }}>
                   {order.lines.map((l) => (
                     <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0,1fr) auto', gap: 14, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #EDEDEA' }}>
-                      <span style={{ ...thumb, aspectRatio: '1' }} />
+                      {/* Photo enregistrée à l'achat (coloris choisi) ; motif rayé si la montre n'en avait pas. */}
+                      <span style={{ ...thumb, aspectRatio: '1', ...(l.image && { backgroundImage: `url(${l.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }) }} role={l.image ? 'img' : undefined} aria-label={l.image ? l.name : undefined} />
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}><span style={{ fontSize: 13.5, fontWeight: 600, textTransform: 'uppercase' }}>{l.name}</span><span style={{ fontSize: 12, color: '#6B6B66' }}>{l.variant ? l.variant + ' · ' : ''}{l.qty} × {fmt(l.unit)} · prix figé à l’achat</span></span>
                       <span style={{ fontSize: 14 }}>{fmt(l.unit * l.qty)}</span>
                     </div>
