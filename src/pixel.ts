@@ -12,7 +12,7 @@ declare global { interface Window { fbq?: Fbq; _fbq?: Fbq } }
 
 let ready = false;
 /** Événements survenus avant l'arrivée de l'identifiant (fiche ouverte depuis une pub) : envoyés à l'initialisation. */
-let pending: [string, Record<string, unknown> | undefined][] = [];
+let pending: [string, Record<string, unknown> | undefined, { eventID: string } | undefined][] = [];
 
 export function initPixel(id: string) {
   if (ready || !/^\d{5,20}$/.test(id)) return;
@@ -35,11 +35,16 @@ export function initPixel(id: string) {
 
 /** À appeler après le premier PageView : envoie les événements en attente (ou les abandonne s'il n'y a pas de pixel). */
 export function flushPixel() {
-  if (ready) for (const [event, params] of pending) window.fbq?.('track', event, params);
+  if (ready) for (const [event, params, opts] of pending) window.fbq?.('track', event, params, opts);
   pending = [];
 }
 
-export function track(event: 'PageView' | 'ViewContent' | 'AddToCart' | 'InitiateCheckout' | 'Purchase', params?: Record<string, unknown>) {
-  if (ready) window.fbq?.('track', event, params);
-  else if (event !== 'PageView' && pending.length < 20) pending.push([event, params]);
+/**
+ * `eventID` : même identifiant que l'événement envoyé par le serveur (API Conversions, backend/src/shop/meta-capi.ts),
+ * pour que Meta ne compte qu'une fois un achat reçu des deux côtés.
+ */
+export function track(event: 'PageView' | 'ViewContent' | 'AddToCart' | 'InitiateCheckout' | 'Purchase', params?: Record<string, unknown>, eventID?: string) {
+  const opts = eventID ? { eventID } : undefined;
+  if (ready) window.fbq?.('track', event, params, opts);
+  else if (event !== 'PageView' && pending.length < 20) pending.push([event, params, opts]);
 }

@@ -15,6 +15,7 @@ import { CheckoutController } from './shop/checkout.controller';
 import { SiteAccess, SiteAccessGuard } from './shop/site-access';
 import { SiteController } from './shop/site.controller';
 import { CheckoutService } from './shop/checkout.service';
+import { MetaCapi } from './shop/meta-capi';
 import { OrderMail } from './shop/order-mail';
 import { MailService } from './common/mail.service';
 import { Public } from './common/decorators';
@@ -59,6 +60,7 @@ class HealthController {
     CheckoutService,
     MailService,
     OrderMail,
+    MetaCapi,
     SiteAccess,
     SiteAccessGuard,
     // Ordre : limitation de débit, puis authentification, puis rôle.

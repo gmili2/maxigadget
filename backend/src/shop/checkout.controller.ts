@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Headers, HttpCode, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Post, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { PaymentMethod } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
@@ -67,9 +68,12 @@ export class CheckoutController {
   /** En-tête Idempotency-Key conseillé : un double clic ne crée pas deux commandes. */
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('orders')
-  async create(@Body() dto: CheckoutDto, @Headers('idempotency-key') key?: string) {
+  async create(@Body() dto: CheckoutDto, @Req() req: Request, @Headers('idempotency-key') key?: string) {
     const idem = key && /^[\w-]{8,64}$/.test(key) ? key : undefined;
     dto.country = dto.address.country;
-    return { data: await this.checkout.create(dto, idem) };
+    // Pour l'API Conversions de Meta : adresse et navigateur du client, cookies du pixel.
+    const cookies = (req.cookies ?? {}) as Record<string, string | undefined>;
+    const browser = { ip: req.ip, userAgent: req.header('user-agent'), fbp: cookies._fbp, fbc: cookies._fbc, url: req.header('referer') };
+    return { data: await this.checkout.create(dto, idem, browser) };
   }
 }

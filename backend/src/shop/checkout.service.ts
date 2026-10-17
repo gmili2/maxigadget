@@ -9,6 +9,7 @@ import { VISIBLE } from '../catalog/visibility';
 import { AppError } from '../common/http';
 import { PrismaService } from '../prisma.service';
 import { emailForPhone } from './no-email';
+import { type BrowserContext, MetaCapi } from './meta-capi';
 import { OrderMail } from './order-mail';
 import { SiteAccess } from './site-access';
 import type { CheckoutDto, QuoteDto } from './checkout.controller';
@@ -28,7 +29,7 @@ const PROVIDER = { CASH_ON_DELIVERY: 'COD', BANK_TRANSFER: 'BANK_TRANSFER' } as 
  */
 @Injectable()
 export class CheckoutService {
-  constructor(private prisma: PrismaService, private pricing: PricingService, private config: ConfigService, private access: SiteAccess, private orderMail: OrderMail) {}
+  constructor(private prisma: PrismaService, private pricing: PricingService, private config: ConfigService, private access: SiteAccess, private orderMail: OrderMail, private metaCapi: MetaCapi) {}
 
   /** Méthodes de livraison actives pour un pays. */
   async shippingMethods(country: string) {
@@ -45,7 +46,7 @@ export class CheckoutService {
     return this.summary(r);
   }
 
-  async create(dto: CheckoutDto, idempotencyKey: string | undefined) {
+  async create(dto: CheckoutDto, idempotencyKey: string | undefined, browser: BrowserContext = {}) {
     if (idempotencyKey) {
       const existing = await this.prisma.order.findUnique({ where: { idempotencyKey } });
       if (existing) return this.confirmation(existing);
@@ -102,6 +103,11 @@ export class CheckoutService {
     }, { isolationLevel: 'ReadCommitted', timeout: 20_000 });
     // Hors transaction et sans attendre : la commande est confirmée même si l'envoi échoue.
     void this.orderMail.placed(order.id);
+    void this.metaCapi.purchase({
+      number: order.number, totalCents: order.totalCents, userId: order.userId, placedAt: order.placedAt,
+      customer: { ...dto.customer, email: dto.customer.email, city: dto.address.city },
+      items: dto.items.map((i) => ({ slug: i.slug, quantity: i.quantity })),
+    }, browser);
     return this.confirmation(order);
   }
 

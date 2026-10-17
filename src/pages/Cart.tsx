@@ -173,7 +173,7 @@ export function Checkout() {
           address: { line1: addr.line1, city: addr.city, country: 'MA' },
         },
       });
-      track('Purchase', { content_ids: s.items.map((l) => l.product.id), content_type: 'product', num_items: s.count, value: r.data.totalCents / 100, currency: 'MAD' });
+      track('Purchase', { content_ids: s.items.map((l) => l.product.id), content_type: 'product', num_items: s.count, value: r.data.totalCents / 100, currency: 'MAD', order_id: r.data.number }, `order-${r.data.number}`);
       setDone(r.data); s.clear(); setIdemKey(newKey());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'تعذّر الاتصال بالخادم، لم يتم تسجيل طلبك. حاول مرة أخرى.');

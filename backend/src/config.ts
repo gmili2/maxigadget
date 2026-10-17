@@ -22,6 +22,10 @@ const schema = z.object({
   ORDER_NOTIFY_EMAIL: z.string().optional(),
   // Pixel Meta (Facebook) des campagnes publicitaires : identifiant numérique, facultatif.
   FB_PIXEL_ID: z.string().regex(/^\d{5,20}$/, 'FB_PIXEL_ID : identifiant numérique du pixel').optional(),
+  // API Conversions (facultatif) : jeton d'accès de l'ensemble de données, version de l'API Graph, code de test.
+  FB_CAPI_TOKEN: z.string().min(20).optional(),
+  FB_GRAPH_VERSION: z.string().regex(/^v\d+\.\d+$/).optional(),
+  FB_TEST_EVENT_CODE: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
