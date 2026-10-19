@@ -529,20 +529,20 @@ const waPhone = (raw: string) => {
   if (d.startsWith('0')) d = '212' + d.slice(1);
   return d;
 };
-/** Message de confirmation prêt à envoyer (le client répond « OK » pour confirmer). */
+/** Message de confirmation en arabe, prêt à envoyer (le client répond « نعم » pour confirmer). */
 function confirmMessage(o: AOrder) {
   const first = o.customer.split(/\s+/)[0] || '';
   const lines = o.lines.map((l) => `• ${l.qty} × ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join('\n');
   return [
-    `Bonjour ${first} 👋`,
-    `Merci pour votre commande ${o.number} sur GMBIJOUX ⌚`,
+    `مرحبًا ${first} 👋`,
+    `شكرًا على طلبك ${o.number} من ماكسي غادجت 🛍️`,
     '',
     lines,
-    `Total : ${fmt(o.total)} — paiement à la livraison 💵`,
-    `Adresse : ${o.address}`,
+    `المجموع: ${fmt(o.total)} — الدفع عند الاستلام 💵`,
+    `العنوان: ${o.address}`,
     '',
-    'Merci de confirmer votre commande en répondant « OK » ✅',
-    'Livraison sous 2 à 4 jours.',
+    'المرجو تأكيد الطلب بالرد بـ «نعم» ✅',
+    'التوصيل خلال 24 إلى 72 ساعة.',
   ].join('\n');
 }
 const waLink = (o: AOrder) => `https://wa.me/${waPhone(o.phone)}?text=${encodeURIComponent(confirmMessage(o))}`;
