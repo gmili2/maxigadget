@@ -682,7 +682,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
   const toTiers = (d: { minQty: number; amountCents: number; isActive: boolean }[]) => d.map((t) => ({ minQty: String(t.minQty), amount: String(t.amountCents / 100), active: t.isActive }));
   const saveTiers = () => run(async () => {
     const body = tiers.filter((t) => t.minQty || t.amount).map((t) => ({ minQty: Number(t.minQty), amountCents: cents(t.amount), isActive: t.active }));
-    if (body.some((t) => !Number.isInteger(t.minQty) || t.minQty < 2 || !(t.amountCents > 0))) throw new ApiError(400, 'VALIDATION_ERROR', 'Chaque palier : au moins 2 montres et une remise en DH');
+    if (body.some((t) => !Number.isInteger(t.minQty) || t.minQty < 2 || !(t.amountCents > 0))) throw new ApiError(400, 'VALIDATION_ERROR', 'Chaque palier : au moins 2 produits et une remise en DH');
     setTiers(toTiers((await api<{ data: { minQty: number; amountCents: number; isActive: boolean }[] }>('/admin/quantity-discounts', { method: 'PATCH', body: { tiers: body } })).data));
   }, 'Remise par quantité enregistrée');
   const loadPromos = useCallback(() => Promise.all([
@@ -730,7 +730,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
     const tiers = ptiers.filter((t) => t.minQty || t.amount).map((t) => ({ minQty: Number(t.minQty), amountCents: cents(t.amount) }));
     if (tiers.some((t) => !Number.isInteger(t.minQty) || t.minQty < 2 || !(t.amountCents > 0))) throw new ApiError(400, 'VALIDATION_ERROR', 'Chaque palier : au moins 2 exemplaires et une remise en DH');
     applyProduct((await api<{ data: ApiProduct }>(`/admin/products/${id}/quantity-discounts`, { method: 'PUT', body: { tiers } })).data);
-  }, 'Remise de la montre enregistrée');
+  }, 'Remise du produit enregistrée');
   const imageAction = (path: string, method: string, ok: string) =>
     run(async () => applyProduct((await api<{ data: ApiProduct }>(path, { method })).data), ok);
   const uploadProductImages = (id: string, files: File[]) => run(async () => {
@@ -1238,15 +1238,15 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 20, background: '#fff', border: '1px solid #E6E6E1' }}>
               <span style={{ fontWeight: 600, fontSize: 16 }}>Remise par quantité</span>
-              <span style={{ fontSize: 13, color: '#6B6B66' }}>Appliquée automatiquement selon le nombre de montres dans le panier (le palier le plus haut atteint). Non cumulable avec un code promo : le client obtient la réduction la plus avantageuse des deux.</span>
+              <span style={{ fontSize: 13, color: '#6B6B66' }}>Appliquée automatiquement selon le nombre de produits dans le panier (le palier le plus haut atteint). Non cumulable avec un code promo : le client obtient la réduction la plus avantageuse des deux.</span>
               {tiers.map((t, i) => {
                 const set = (patch: Partial<typeof t>) => setTiers((xs) => xs.map((x, k) => (k === i ? { ...x, ...patch } : x)));
                 const field: CSSProperties = { width: 90, height: 40, padding: '0 12px', border: '1px solid #D9D9D4', borderRadius: 999, background: '#fff', fontSize: 14 };
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 14 }}>
                     <span>Dès</span>
-                    <input className="adm-input" type="number" min={2} value={t.minQty} aria-label="Nombre de montres" onChange={(e) => set({ minQty: e.target.value })} style={field} />
-                    <span>montres :</span>
+                    <input className="adm-input" type="number" min={2} value={t.minQty} aria-label="Nombre de produits" onChange={(e) => set({ minQty: e.target.value })} style={field} />
+                    <span>produits :</span>
                     <span>−</span>
                     <input className="adm-input" type="number" min={1} value={t.amount} aria-label="Remise en DH" onChange={(e) => set({ amount: e.target.value })} style={field} />
                     <span>DH sur le panier</span>
@@ -1591,8 +1591,8 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                     <SmallBtn dark onClick={() => saveProductTiers(editId)}>Enregistrer la remise</SmallBtn>
                   </div>
                 </>
-              ) : <span style={{ fontSize: 13, color: '#6B6B66' }}>Enregistrez d’abord la montre, puis réglez sa remise.</span>}
-              <span style={{ fontSize: 12, color: '#6B6B66' }}>Compte les exemplaires de ce modèle dans le panier (tous coloris confondus). Sans palier ici, la montre suit la remise générale (Promotions → Remise par quantité). Non cumulable avec un code promo : la réduction la plus avantageuse s’applique.</span>
+              ) : <span style={{ fontSize: 13, color: '#6B6B66' }}>Enregistrez d’abord le produit, puis réglez sa remise.</span>}
+              <span style={{ fontSize: 12, color: '#6B6B66' }}>Compte les exemplaires de ce modèle dans le panier (toutes variantes confondues). Sans palier ici, le produit suit la remise générale (Promotions → Remise par quantité). Non cumulable avec un code promo : la réduction la plus avantageuse s’applique.</span>
             </div>
           )}
 
@@ -1646,7 +1646,7 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                 <div style={{ ...card, padding: 18, display: 'flex', flexDirection: 'column' }}>
                   {order.lines.map((l) => (
                     <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0,1fr) auto', gap: 14, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #EDEDEA' }}>
-                      {/* Photo enregistrée à l'achat (coloris choisi) ; motif rayé si la montre n'en avait pas. */}
+                      {/* Photo enregistrée à l'achat (coloris choisi) ; motif rayé si le produit n'en avait pas. */}
                       <span style={{ ...thumb, aspectRatio: '1', ...(l.image && { backgroundImage: `url(${l.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }) }} role={l.image ? 'img' : undefined} aria-label={l.image ? l.name : undefined} />
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}><span style={{ fontSize: 13.5, fontWeight: 600, textTransform: 'uppercase' }}>{l.name}</span><span style={{ fontSize: 12, color: '#6B6B66' }}>{l.variant ? l.variant + ' · ' : ''}{l.qty} × {fmt(l.unit)} · prix figé à l’achat</span></span>
                       <span style={{ fontSize: 14 }}>{fmt(l.unit * l.qty)}</span>

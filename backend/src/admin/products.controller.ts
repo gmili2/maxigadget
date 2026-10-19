@@ -349,7 +349,7 @@ export class AdminProductsController {
   @Put(':id/quantity-discounts')
   async setQtyDiscounts(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ProductTiersDto, @CurrentUser() me: AuthUser) {
     const sorted = [...dto.tiers].sort((a, b) => a.minQty - b.minQty);
-    if (new Set(sorted.map((t) => t.minQty)).size !== sorted.length) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Deux paliers ont le même nombre de montres');
+    if (new Set(sorted.map((t) => t.minQty)).size !== sorted.length) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Deux paliers ont le même nombre de produits');
     if (sorted.some((t, i) => i > 0 && t.amountCents <= sorted[i - 1].amountCents)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Chaque palier doit offrir une remise plus grande que le précédent');
     }
@@ -374,7 +374,7 @@ export class AdminProductsController {
     const src = await this.prisma.product.findUniqueOrThrow({ where: { id }, include });
     const sku = await this.freeSku(src.sku);
     const name = `${src.name} (copie)`.slice(0, 160);
-    let slug = slugify(name).slice(0, 170) || 'montre-copie';
+    let slug = slugify(name).slice(0, 170) || 'produit-copie';
     for (let i = 2; await this.prisma.product.findUnique({ where: { slug } }); i++) slug = `${slugify(name).slice(0, 165)}-${i}`;
 
     // Fichiers copiés avant la transaction ; supprimés si elle échoue.

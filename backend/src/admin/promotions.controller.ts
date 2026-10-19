@@ -91,7 +91,7 @@ export class AdminPromotionsController {
   @Patch('quantity-discounts')
   async setQuantityDiscounts(@Body() dto: QuantityTiersDto, @CurrentUser() me: AuthUser) {
     const qtys = dto.tiers.map((t) => t.minQty);
-    if (new Set(qtys).size !== qtys.length) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Deux paliers ont le même nombre de montres');
+    if (new Set(qtys).size !== qtys.length) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Deux paliers ont le même nombre de produits');
     const sorted = [...dto.tiers].sort((a, b) => a.minQty - b.minQty);
     if (sorted.some((t, i) => i > 0 && t.amountCents <= sorted[i - 1].amountCents)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Chaque palier doit offrir une remise plus grande que le précédent');
