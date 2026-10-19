@@ -521,6 +521,39 @@ function downloadTemplate() {
   a.click();
   URL.revokeObjectURL(url);
 }
+/* ---------- contact client (WhatsApp, appel) ---------- */
+/** Numéro au format international sans « + » pour wa.me : 06… → 2126… */
+const waPhone = (raw: string) => {
+  let d = raw.replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('0')) d = '212' + d.slice(1);
+  return d;
+};
+/** Message de confirmation prêt à envoyer (le client répond « OK » pour confirmer). */
+function confirmMessage(o: AOrder) {
+  const first = o.customer.split(/\s+/)[0] || '';
+  const lines = o.lines.map((l) => `• ${l.qty} × ${l.name}${l.variant ? ` (${l.variant})` : ''}`).join('\n');
+  return [
+    `Bonjour ${first} 👋`,
+    `Merci pour votre commande ${o.number} sur GMBIJOUX ⌚`,
+    '',
+    lines,
+    `Total : ${fmt(o.total)} — paiement à la livraison 💵`,
+    `Adresse : ${o.address}`,
+    '',
+    'Merci de confirmer votre commande en répondant « OK » ✅',
+    'Livraison sous 2 à 4 jours.',
+  ].join('\n');
+}
+const waLink = (o: AOrder) => `https://wa.me/${waPhone(o.phone)}?text=${encodeURIComponent(confirmMessage(o))}`;
+const WA_GREEN = '#25D366';
+const WaIcon = ({ size = 16, color = '#fff' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden fill={color}><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4 5.2 5.2 0 0 0 3.2.7 2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z" /></svg>
+);
+const PhoneIcon = ({ size = 16, color = '#111' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z" /></svg>
+);
+
 /** Commandes au format CSV (Excel en français : « ; », virgule décimale, BOM pour les accents). */
 function exportOrdersCsv(rows: AOrder[], label: string) {
   const cell = (v: string | number | null | undefined) => {
@@ -1211,13 +1244,14 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                 }}>Exporter CSV ({orderRows.length})</OutlineBtn>
               </span>
             </div>
-            {tableWrap(1100, (() => {
-              const cols = '120px minmax(200px,1.4fr) 140px 70px 110px 160px 150px';
+            {tableWrap(1200, (() => {
+              const cols = '120px minmax(200px,1.4fr) 140px 70px 110px 160px 150px 92px';
               return (
                 <>
-                  <div style={thRow(cols)}><span>N°</span><span>Client</span><span>Date</span><span>Articles</span><span>Total</span><span>Paiement</span><span>Statut</span></div>
+                  <div style={thRow(cols)}><span>N°</span><span>Client</span><span>Date</span><span>Articles</span><span>Total</span><span>Paiement</span><span>Statut</span><span>Contact</span></div>
                   {orderRows.slice((orderPage - 1) * ADMIN_PER_PAGE, orderPage * ADMIN_PER_PAGE).map((o) => (
-                    <button key={o.number} className="adm-row" onClick={() => openOrder(o.number)} style={{ width: '100%', display: 'grid', gridTemplateColumns: cols, gap: 16, alignItems: 'center', padding: '15px 20px', border: 0, borderBottom: '1px solid #EDEDEA', background: 'none', cursor: 'pointer', textAlign: 'left', transition: 'background .25s' }}>
+                    <div key={o.number} role="button" tabIndex={0} className="adm-row" onClick={() => openOrder(o.number)} onKeyDown={(e) => { if (e.key === 'Enter') openOrder(o.number); }}
+                      style={{ width: '100%', display: 'grid', gridTemplateColumns: cols, gap: 16, alignItems: 'center', padding: '15px 20px', border: 0, borderBottom: '1px solid #EDEDEA', background: 'none', cursor: 'pointer', textAlign: 'left', transition: 'background .25s' }}>
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5 }}>{o.number}</span>
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}><span style={{ fontSize: 14 }}>{o.customer}</span><span style={{ fontSize: 12, color: '#6B6B66', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.email}</span></span>
                       <span style={{ fontSize: 13, color: '#55554F' }}>{o.date}</span>
@@ -1225,7 +1259,15 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                       <span style={{ fontSize: 14 }}>{fmt(o.total)}</span>
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13 }}><Dot c={DOT[PAYDOT[o.pay]]} />{o.pay}</span><span style={{ fontSize: 11.5, color: '#6B6B66' }}>{o.method}</span></span>
                       {orderStatusPill(o)}
-                    </button>
+                      {o.phone ? (
+                        <span style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                          <a href={waLink(o)} target="_blank" rel="noreferrer" title="Envoyer la confirmation sur WhatsApp" aria-label={`WhatsApp ${o.customer}`}
+                            style={{ width: 36, height: 36, borderRadius: '50%', background: WA_GREEN, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><WaIcon /></a>
+                          <a href={`tel:${o.phone.replace(/[^\d+]/g, '')}`} title={`Appeler ${o.phone}`} aria-label={`Appeler ${o.customer}`}
+                            style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid #D9D9D4', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><PhoneIcon /></a>
+                        </span>
+                      ) : <span />}
+                    </div>
                   ))}
                 </>
               );
@@ -1660,6 +1702,18 @@ function AdminPanel({ user, onLogout }: { user: ApiUser; onLogout: () => void })
                   <div style={infoCard}>
                     <span style={{ ...monoLabel, fontSize: 10, marginBottom: 4 }}>Client &amp; livraison</span>
                     <span style={{ fontWeight: 600 }}>{order.customer}</span>{order.email !== order.phone && <span>{order.email}</span>}<span>{order.phone}</span><span style={{ color: '#55554F' }}>{order.address}</span>
+                    {order.phone && (
+                      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                        <a href={waLink(order)} target="_blank" rel="noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 40, padding: '0 16px', borderRadius: 999, background: WA_GREEN, color: '#fff', fontSize: 13.5, fontWeight: 600, textDecoration: 'none' }}>
+                          <WaIcon /> Confirmer sur WhatsApp
+                        </a>
+                        <a href={`tel:${order.phone.replace(/[^\d+]/g, '')}`}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 40, padding: '0 16px', borderRadius: 999, border: '1px solid #D9D9D4', background: '#fff', color: '#111', fontSize: 13.5, fontWeight: 600, textDecoration: 'none' }}>
+                          <PhoneIcon /> Appeler
+                        </a>
+                      </span>
+                    )}
                   </div>
                   <div style={infoCard}>
                     <span style={{ ...monoLabel, fontSize: 10, marginBottom: 4 }}>Paiement</span>
