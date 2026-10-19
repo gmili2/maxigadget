@@ -62,7 +62,7 @@ export class SeoController {
 
   /** index.html du site, relu seulement après un déploiement. */
   private template() {
-    const file = this.config.get<string>('SITE_INDEX_FILE') || join(homedir(), 'public_html/index.html');
+    const file = this.config.get<string>('SITE_INDEX_FILE') || join(homedir(), 'maxigadget.store/index.html');
     const { mtimeMs } = statSync(file);
     if (mtimeMs !== this.index.mtime) this.index = { mtime: mtimeMs, html: readFileSync(file, 'utf8') };
     return this.index.html;
